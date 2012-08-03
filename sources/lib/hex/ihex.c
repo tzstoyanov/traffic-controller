@@ -14,16 +14,16 @@ static char ctohex(unsigned char x) {
 /* some ansi prototypes.. maybe ought to make a .h file */
 
 char *itohex4(char *str, unsigned short x) {
-	str[0] = ctohex((unsigned char) (x >> 12));
-	str[1] = ctohex((unsigned char) (x >> 8));
-	str[2] = ctohex((unsigned char) (x >> 4));
-	str[3] = ctohex((unsigned char) (x));
+	*str++ = ctohex((unsigned char) (x >> 12));
+	*str++ = ctohex((unsigned char) (x >> 8));
+	*str++ = ctohex((unsigned char) (x >> 4));
+	*str++ = ctohex((unsigned char) (x));
 	return str;
 }
 
 char *itohex2(char *str, unsigned char x) {
-	str[0] = ctohex(x >> 4);
-	str[1] = ctohex(x);
+	*str++ = ctohex((unsigned char) (x >> 4));
+	*str++ = ctohex((unsigned char) (x));
 	return str;
 }
 
@@ -66,21 +66,19 @@ int parseHexLine(char *theline, int bytes[], int *addr, int *num, int *code) {
 	itohex4(ptr, *addr);
 	ptr += 4;
 	/* printf("Line: length=%d Addr=%d\n", len, *addr); */
-	if (!sscanf(ptr, "%02x", code))
-		return 0;
+	*code = hextoi(ptr);
 	ptr += 2;
 	sum = (len & 255) + ((*addr >> 8) & 255) + (*addr & 255) + (*code & 255);
 	while (*num != len) {
-		if (!sscanf(ptr, "%02x", &bytes[*num]))
-			return 0;
+		bytes[*num] = hextoi(ptr);
 		ptr += 2;
 		sum += bytes[*num] & 255;
 		(*num)++;
 		if (*num >= 256)
 			return 0;
 	}
-	if (!sscanf(ptr, "%02x", &cksum))
-		return 0;
+	cksum = hextoi(ptr);
+
 	if (((sum & 255) + (cksum & 255)) & 255)
 		return 0; /* checksum error */
 	return 1;
@@ -94,44 +92,21 @@ int parseHexLine(char *theline, int bytes[], int *addr, int *num, int *code) {
 
 #define MAXHEXLINE 32	/* the maximum number of bytes to put in one line */
 
-void hexout(char *outbuff, char byte_buffer[] , int memory_location, int end) {
+void hexout(char *outbuff, char byte_buffer[16] , int memory_location, int len) {
+	register int i=0, sum=0, type = 0 >= len;
 
-	static int last_mem, buffer_pos, buffer_addr;
-	static int writing_in_progress = 0;
-	register int i, sum;
+	if (len > 16 ) len = 16;
 
-	if (!writing_in_progress) {
-		/* initial condition setup */
-		last_mem = memory_location - 1;
-		buffer_pos = 0;
-		buffer_addr = memory_location;
-		writing_in_progress = 1;
+	/* it's time to dump the buffer to a line in the file */
+	outbuff[0] = ':';
+	itohex2(&outbuff[1], len);
+	itohex4(&outbuff[1 + 2], memory_location);
+	itohex2(&outbuff[1 + 2 + 4], type); /* type */
+	sum = type + len + ((memory_location >> 8) & 255) + (memory_location & 255);
+	for (i = 0; i < len; i++) {
+		itohex2(&outbuff[1 + 2 + 4 + 2 + 2 * i], byte_buffer[i] & 255);
+		sum += byte_buffer[i] & 255;
 	}
-
-	if ((memory_location != (last_mem + 1)) || (buffer_pos >= MAXHEXLINE)
-			|| ((end) && (buffer_pos > 0))) {
-		/* it's time to dump the buffer to a line in the file */
-		outbuff[0] = ':';return;
-		itohex2(&outbuff[1], buffer_pos);
-		itohex4(&outbuff[1 + 2], buffer_addr);
-		itohex2(&outbuff[1 + 2 + 4], 0);
-		sum = buffer_pos + ((buffer_addr >> 8) & 255) + (buffer_addr & 255);
-		for (i = 0; i < buffer_pos; i++) {
-			itohex2(&outbuff[1 + 2 + 4 + 2 + 2 * i], byte_buffer[i] & 255);
-			sum += byte_buffer[i] & 255;
-		}
-		itohex2(&outbuff[1 + 2 + 4 + 2 + 2 * i], (-sum) & 255);
-		buffer_addr = memory_location;
-		buffer_pos = 0;
-	}
-
-	if (end) {
-		strcat(&outbuff[1 + 2 + 4 + 2 + 2 * i + 2], ":00000001FF\n"); /* end of file marker */
-		writing_in_progress = 0;
-	}
-
-	last_mem = memory_location;
-	//byte_buffer[buffer_pos] = byte & 255;
-	buffer_pos++;
+	itohex2(&outbuff[1 + 2 + 4 + 2 + 2 * i], (-sum) & 255);
 }
 
