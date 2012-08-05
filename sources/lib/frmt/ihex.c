@@ -2,7 +2,7 @@
  * ihex.c
  *
  *  Created on: 03.08.2012
- *      Author: ivm
+ *      Author: ivan Dimitrov
  */
 
 static const char hexSymb[] = "0123456789ABCDEF";
