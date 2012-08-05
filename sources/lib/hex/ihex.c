@@ -35,9 +35,9 @@ int hextoi(char *str) {
 		if (t < 'A')
 			t -= '0';
 		else if (t < 'a')
-			t -= 'A';
+			t -= 'A'-10;
 		else
-			t -= 'a';
+			t -= 'a'-10;
 		y <<= 4;
 		y |= t;
 	}
@@ -49,35 +49,66 @@ int hextoi(char *str) {
 /* line was valid, or a 0 if an error occured.  The variable */
 /* num gets the number of bytes that were stored into bytes[] */
 
-int parseHexLine(char *theline, int bytes[], int *addr, int *num, int *code) {
+int parseHexLine(char *theline, char bytes[], int *addr, int *num, int *rectype) {
 	int sum, len, cksum;
 	char *ptr;
+	union {
+		struct  {
+		long n;
+		long n2;
+		};
+		char c[4];
+	} buff;
 
 	*num = 0;
 	if (theline[0] != ':')
 		return 0;
+/*
 	if (strlen(theline) < 11)
 		return 0;
+*/
 	ptr = theline + 1;
-	len = hextoi(ptr);
+	buff.n = 0;
+	buff.c[0] = ptr[0];
+	buff.c[1] = ptr[1];
+	len = hextoi(buff.c);
 	ptr += 2;
+/*
 	if ((int) strlen(theline) < (11 + (len * 2)))
 		return 0;
-	itohex4(ptr, *addr);
+*/
+
+	buff.n2 = buff.n = 0;
+	buff.c[0] = ptr[0];
+	buff.c[1] = ptr[1];
+	buff.c[2] = ptr[2];
+	buff.c[3] = ptr[3];
+	*addr = hextoi(buff.c);
 	ptr += 4;
 	/* printf("Line: length=%d Addr=%d\n", len, *addr); */
-	*code = hextoi(ptr);
+
+	buff.n = 0;
+	buff.c[0] = ptr[0];
+	buff.c[1] = ptr[1];
+	*rectype = hextoi(buff.c);
 	ptr += 2;
-	sum = (len & 255) + ((*addr >> 8) & 255) + (*addr & 255) + (*code & 255);
+	sum = (len & 255) + ((*addr >> 8) & 255) + (*addr & 255) + (*rectype & 255);
 	while (*num != len) {
-		bytes[*num] = hextoi(ptr);
+		buff.n = 0;
+		buff.c[0] = ptr[0];
+		buff.c[1] = ptr[1];
+		bytes[*num] = hextoi(buff.c);
 		ptr += 2;
-		sum += bytes[*num] & 255;
+		sum += ((unsigned char)bytes[*num]) & 255;
 		(*num)++;
-		if (*num >= 256)
+		if (*num >= 44)
 			return 0;
 	}
-	cksum = hextoi(ptr);
+	buff.n = 0;
+	buff.c[0] = ptr[0];
+	buff.c[1] = ptr[1];
+
+	cksum = hextoi(buff.c);
 
 	if (((sum & 255) + (cksum & 255)) & 255)
 		return 0; /* checksum error */
@@ -99,14 +130,14 @@ void hexout(char *outbuff, char byte_buffer[16] , int memory_location, int len) 
 
 	/* it's time to dump the buffer to a line in the file */
 	outbuff[0] = ':';
-	itohex2(&outbuff[1], len);
-	itohex4(&outbuff[1 + 2], memory_location);
-	itohex2(&outbuff[1 + 2 + 4], type); /* type */
+	itohex2(&outbuff[1], (char)len);
+	itohex4(&outbuff[1 + 2], (short)memory_location);
+	itohex2(&outbuff[1 + 2 + 4], (char)type); /* type */
 	sum = type + len + ((memory_location >> 8) & 255) + (memory_location & 255);
 	for (i = 0; i < len; i++) {
-		itohex2(&outbuff[1 + 2 + 4 + 2 + 2 * i], byte_buffer[i] & 255);
+		itohex2(&outbuff[1 + 2 + 4 + 2 + 2 * i], (char)(byte_buffer[i] & 255));
 		sum += byte_buffer[i] & 255;
 	}
-	itohex2(&outbuff[1 + 2 + 4 + 2 + 2 * i], (-sum) & 255);
+	itohex2(&outbuff[1 + 2 + 4 + 2 + 2 * i], (char)( (-sum) & 255));
 }
 
