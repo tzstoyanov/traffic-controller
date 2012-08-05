@@ -63,20 +63,12 @@ int parseHexLine(char *theline, char bytes[], int *addr, int *num, int *rectype)
 	*num = 0;
 	if (theline[0] != ':')
 		return 0;
-/*
-	if (strlen(theline) < 11)
-		return 0;
-*/
 	ptr = theline + 1;
 	buff.n = 0;
 	buff.c[0] = ptr[0];
 	buff.c[1] = ptr[1];
 	len = hextoi(buff.c);
 	ptr += 2;
-/*
-	if ((int) strlen(theline) < (11 + (len * 2)))
-		return 0;
-*/
 
 	buff.n2 = buff.n = 0;
 	buff.c[0] = ptr[0];
@@ -85,8 +77,6 @@ int parseHexLine(char *theline, char bytes[], int *addr, int *num, int *rectype)
 	buff.c[3] = ptr[3];
 	*addr = hextoi(buff.c);
 	ptr += 4;
-	/* printf("Line: length=%d Addr=%d\n", len, *addr); */
-
 	buff.n = 0;
 	buff.c[0] = ptr[0];
 	buff.c[1] = ptr[1];
