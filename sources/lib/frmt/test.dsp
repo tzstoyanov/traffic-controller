@@ -86,6 +86,10 @@ SOURCE=.\ihex.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\print.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\test.c
 # End Source File
 # End Target

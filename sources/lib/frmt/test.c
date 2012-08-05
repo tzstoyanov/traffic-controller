@@ -2,7 +2,7 @@
  * hex2.c
  *
  *  Created on: 03.08.2012
- *      Author: ivm
+ *      Author: ivan
  */
 
 #include <string.h>
@@ -10,8 +10,11 @@
 
 void hexout(char *outbuff, char buff[], int memory_location, int end);
 int parseHexLine(char *theline, char bytes[], int *addr, int *num, int *rectype);
+int hextoi(char *str);
 
-static char dest[1000];
+
+
+static char dest[100];
 static const char testHexPattern[][44] = {
     ":10010000214601360121470136007EFE09D2190140",
     ":100110002146017EB7C20001FF5F16002148011988",
@@ -74,6 +77,36 @@ int testDump(void)
     return err;
 }
 
+
+#include "print.h"
+#include <stdlib.h>
+
+int testPrint(void)
+{
+    int err = 0;
+
+    int n = 999+1;
+    int i;
+    int len =0;
+    for (i = 0; i < n; i++)
+    {
+		memset(dest,0,sizeof(dest));
+	    print_int(i, dest, 1+!!(i/10)+!!(i/100)+!!(i/1000)+!!(i/10000), &len);
+
+		err |= atoi(dest) != i;
+    }    
+    for (i = 0; i < n; i++)
+    {
+		memset((void*)dest,(int)0, (int)sizeof(dest));
+	    print_hex((short)i, dest, 1+!!(i/0x10)+!!(i/0x100)+!!(i/0x1000)+!!(i/0x10000), &len);
+
+		err |= hextoi(dest) != i;
+    }    
+
+    return err;
+}
+
+
 int main()
 {
     int err = 0;
@@ -81,6 +114,8 @@ int main()
 
     printf("Hex decode: %s \n", (err |= testParse())?"failed":"Passed");
     printf("Hex encode: %s \n", (err |= testDump())?"failed":"Passed");
+
+    printf("Print func: %s \n", (err |= testPrint())?"failed":"Passed");
 
     return !!err;
 }
