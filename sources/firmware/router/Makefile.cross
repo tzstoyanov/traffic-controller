@@ -1,0 +1,54 @@
+
+#Path to where I have the toolchain
+TOOLCHAIN_PATH=/home/workspace/TL/tools/toolchain-mipsel_4.1.1_BRCM24/
+TOOLCHAIN_BIN_PATH=$(TOOLCHAIN_PATH)bin/
+TOOLCHAIN_LIB_PATH=$(TOOLCHAIN_PATH)lib/
+
+AR=$(TOOLCHAIN_BIN_PATH)mipsel-linux-uclibc-ar
+AS=$(TOOLCHAIN_BIN_PATH)mipsel-linux-uclibc-as
+LD=$(TOOLCHAIN_BIN_PATH)mipsel-linux-uclibc-ld
+NM=$(TOOLCHAIN_BIN_PATH)mipsel-linux-uclibc-nm
+CC=$(TOOLCHAIN_BIN_PATH)mipsel-linux-uclibc-gcc
+CPP=$(TOOLCHAIN_BIN_PATH)mipsel-linux-uclibc-cpp
+GCC=$(TOOLCHAIN_BIN_PATH)mipsel-linux-uclibc-gcc
+CXX=$(TOOLCHAIN_BIN_PATH)mipsel-linux-uclibc-g++
+RANLIB=$(TOOLCHAIN_BIN_PATH)mipsel-linux-uclibc-ranlib
+ac_cv_linux_vers=2.4.37
+
+
+#Where the libs for current toolchain are
+LDFLAGS="-L$(TOOLCHAIN_LIB_PATH)"
+
+#Where the libs for current toolchain are
+LFLAGS="-L$(TOOLCHAIN_LIB_PATH)"
+#LFLAGS=""
+
+#Where the include files for current toolchain are
+#Trying with different compiler flags
+CFLAGS="-I$(TOOLCHAIN_PATH)include -Os -pipe -mips32 -mtune=mips32 -funit-at-a-time"
+#CFLAGS="-I$(TOOLCHAIN_PATH)include -D__KERNEL__ -Wall -Wstrict-prototypes -Wno-trigraphs -fno-strict-aliasing -fno-common -fno-builtin-strpbrk -fno-builtin-sprintf -fomit-frame-pointer  -funit-at-a-time  -fno-delayed-branch -mno-abicalls -pipe -DMODULE -mlong-calls"
+
+APP_NAME = tlight
+APP_FILES = linux_thread main_tlight tl_api tl_cfg_parse tl_controlers tl_packets tl_program tl_serial
+APP_OBJ = $(addsuffix .o, $(APP_FILES))
+
+all: $(APP_NAME)
+
+$(APP_NAME): $(APP_OBJ)
+	$(CC) -o $(APP_NAME) $(APP_OBJ)
+
+#main: helloworld.o echo_sample
+#	$(CC) $(LDFLAGS) -o helloworld helloworld.o
+
+#helloworld.o: helloworld.c 
+#	$(CC) $(CFLAGS) -c helloworld.c
+
+#echo_sample: echo_sample.o 
+#	$(CC) $(LDFLAGS) -o echo_sample echo_sample.o
+
+#echo_sample.o: echo_sample.c 
+#	$(CC) $(CFLAGS) -c echo_sample.c
+
+clean: 
+	rm -f $(APP_NAME) *.o *~
+

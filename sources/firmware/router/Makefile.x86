@@ -1,0 +1,24 @@
+CC=gcc 
+
+APP_NAME = tlight
+#API_NAME = tl_change
+#API_FILES = main_tl_change
+APP_FILES = linux_thread main_tlight tl_api tl_cfg_parse tl_controlers tl_packets tl_program tl_serial
+
+APP_OBJ = $(addsuffix .o, $(APP_FILES))
+#API_OBJ = $(addsuffix .o, $(API_FILES))
+
+CFLAGS = -Wall -Werror -g -I.
+
+.PHONY: all
+#all: $(APP_NAME) $(PGR_NAME)
+all: $(APP_NAME)
+
+$(APP_NAME): $(APP_OBJ)
+	$(CC) -o $(APP_NAME) $(APP_OBJ)
+
+#$(PGR_NAME): $(PGR_OBJ)
+#	$(CC) -o $(PGR_NAME) $(PGR_OBJ)
+
+clean:
+	rm -f $(APP_NAME) $(API_NAME) *.o *~

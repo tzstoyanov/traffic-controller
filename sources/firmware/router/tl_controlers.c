@@ -1,0 +1,228 @@
+#include "os_linux.h"
+#include "linux_thread.h"
+#include "tl_types.h"
+#include "tl_serial.h"
+#include "tl_program.h"
+#include "tl_packets.h"
+#include "tl_controlers.h"
+#include "tl_config.h"
+#include "tl_api.h"
+
+int tl_controler_check_common(uint8_t *arrStatus)
+{
+	tl_global_t *pGlobal = tl_get_global();
+	uint8_t iAddress = arrStatus[0];
+	uint8_t iPktType = (arrStatus[1] & 0xE0) >> 5;
+	uint8_t iState = (arrStatus[1] & 10) >> 4;
+	uint8_t iStatus = (arrStatus[1] & 0x0F);
+	if(NULL == pGlobal->arrDevices[iAddress])
+		return ERROR;
+	if(pGlobal->arrDevices[iAddress]->iType != iPktType)
+		return ERROR;
+	if(TL_MODULE_STATE_OK == iState)
+	{
+		pGlobal->arrDevices[iAddress]->iStatus = TL_MODULE_ERR_OK;
+		if(TL_MODULE_LAMP == iPktType)
+		{
+			if(((tl_controler_lamp_t*)(pGlobal->arrDevices[iAddress]))->stCurrentState.iState != iStatus)
+				return ERROR;
+		}
+		return OK;
+	}
+	pGlobal->arrDevices[iAddress]->iStatus = iStatus;
+	switch(iStatus)
+	{
+		case TL_MODULE_ERR_OK:
+			return OK;
+		case TL_MODULE_ERR_INIT:
+			return OK;
+		case TL_MODULE_ERR_HW:
+			break;
+		case TL_MODULE_ERR_COMM:
+			break;
+		case TL_MODULE_ERR_SLAVE:
+			break;
+		case TL_MODULE_ERR_TIMEOUT:
+			break;
+		default:
+			break;
+	}
+	return ERROR;
+
+}
+
+int tl_controler_check_module(uint8_t iAddress, t_can_packet_t *pPacket)
+{
+	if(pPacket->iLen < 2)
+		return ERROR;
+	return tl_controler_check_common(pPacket->arrData);
+}
+
+int tl_controler_check_gate(uint8_t iAddress, t_can_packet_t *pPacket)
+{
+	uint8_t i, iSize = pPacket->iLen;
+	if(pPacket->iLen < 2)
+		return ERROR;
+	if(OK != tl_controler_check_common(pPacket->arrData))
+		return ERROR;
+	i = 2;
+	iSize -= 2;
+	while(iSize >=2)
+	{
+		tl_controler_check_common(&(pPacket->arrData[i]));
+		iSize -= 2;
+		i += 2;
+	}
+	return OK;
+}
+
+
+tl_controler_t *tl_NewControler(uint8_t iType)
+{
+	tl_controler_t *pControler = NULL;
+	switch(iType)
+	{
+		case TL_MODULE_MASTER:
+			pControler = calloc(1, sizeof(tl_controler_t));
+			break;
+		case TL_MODULE_GATE:
+			pControler = calloc(1, sizeof(tl_controler_t));
+			pControler->fVerifyState = tl_controler_check_gate;
+			break;
+		case TL_MODULE_LAMP:
+			pControler = calloc(1, sizeof(tl_controler_lamp_t));				
+			pControler->fVerifyState = tl_controler_check_module;
+			break;
+		case TL_MODULE_TIMER:
+			pControler = calloc(1, sizeof(tl_controler_timer_t));		
+			pControler->fVerifyState = tl_controler_check_module;
+			break;
+		default:
+			printf("\n\r Uknown controler type %d\n\r", iType);
+			return NULL;
+	}
+	if(NULL != pControler)
+	{
+		pControler->iType = iType;
+		pControler->iStatus = TL_MODULE_ERR_INIT;
+	}
+	return pControler;	
+}
+
+tl_controler_t *tl_get_controler_byname(char *szName)
+{
+	int i;
+	tl_global_t *pGlobal = tl_get_global();
+	
+	for(i=0; i<TL_MAX_CONTROLERS; i++)
+	{
+	 if(NULL == pGlobal->arrDevices[i])
+		return NULL;
+	 if(0 == strcmp(szName, pGlobal->arrDevices[i]->szName))	
+		return pGlobal->arrDevices[i];
+	}	
+	return NULL;
+}
+
+int tl_send_gate_slaves(uint8_t iGate)
+{
+	int i, j=0;
+	uint8_t  arrSlaves[7];	
+	char arrCommand[TL_MAX_PACKET_SERIAL_SIZE];
+	tl_global_t *pGlobal = tl_get_global();
+	
+	if(NULL == pGlobal->arrDevices[iGate] || TL_MODULE_GATE != pGlobal->arrDevices[iGate]->iType)	
+		return ERROR;
+	for(i = iGate+1; i<TL_MAX_CONTROLERS; i++)
+	{
+		if(iGate == pGlobal->arrDevices[i]->iGateId && TL_MODULE_GATE != pGlobal->arrDevices[i]->iType)
+			arrSlaves[j++] = i;
+		else
+			break;
+		if(j >= 7)
+		{
+			tl_cfg_command_set(arrCommand, iGate, TL_CFGID_SLAVES, arrSlaves, 7);
+			j = 0;
+		}
+	}
+	if(j)
+	{
+		tl_cfg_command_set(arrCommand, iGate, TL_CFGID_SLAVES, arrSlaves, j<=7?j:7);
+	}	
+	return OK;
+}
+
+int tl_send_wdinterval()
+{
+	uint8_t iData;
+	char arrCommand[TL_MAX_PACKET_SERIAL_SIZE];
+	tl_global_t *pGlobal = tl_get_global();
+	iData = pGlobal->iWdInterval/10;
+	tl_cfg_command_set(arrCommand, (uint8_t)0xFFFF, TL_CFGID_QINTERVAL, &iData, 1);
+	
+	return OK;
+}
+
+int tl_update_controler_state(tl_instruction_t *pCommand)
+{
+	uint8_t iAddress;
+	void *pDbState, *pCmdState;
+	uint8_t iSize;
+	tl_global_t *pGlobal = tl_get_global();
+
+	iAddress = 	pCommand->u.stCommand.iDeviceId;	
+	if(TL_INSTR_CMD !=pCommand->iType || NULL == pGlobal->arrDevices[iAddress])
+		return ERROR;
+	switch(pGlobal->arrDevices[iAddress]->iType)
+	{
+		case TL_MODULE_LAMP:
+			pDbState = &(((tl_controler_lamp_t*)&(pGlobal->arrDevices[iAddress]))->stCurrentState);
+			pCmdState = &(pCommand->u.stCommand.state.stLamp);
+			iSize = sizeof(tl_lamp_state_t);
+			break;
+		case TL_MODULE_TIMER:
+			pDbState = &(((tl_controler_timer_t*)&(pGlobal->arrDevices[iAddress]))->stCurrentState);
+			pCmdState = &(pCommand->u.stCommand.state.stTimer);
+			iSize = sizeof(tl_timer_state_t);		
+			break;
+		default:
+			return ERROR;
+	}
+	memcpy(pDbState, pCmdState, iSize);
+	return OK;
+}
+
+int tl_ask_controler_state(uint8_t iAddress)
+{
+	tl_global_t *pGlobal = tl_get_global();
+	if(TL_COM_IDLE != pGlobal->stPort.iLineSate)
+		return ERROR;
+	if(OK != tl_wdrequest_command_set(pGlobal->stPort.arrSend, iAddress, pGlobal->arrDevices[0]->iId))
+		return ERROR;
+ 	return tl_com_send_session(&(pGlobal->stPort), iAddress, TL_COM_LOCAL_VERIFY_WAIT);
+}
+
+int tl_check_controlers()
+{
+	int i;
+	tl_global_t *pGlobal = tl_get_global();
+	for(i=0; i<TL_MAX_CONTROLERS; i++)
+	{
+		if(NULL == pGlobal->arrDevices[i])
+			break;
+		tl_ask_controler_state(i);
+	}
+	return OK;	
+}
+
+int tl_controler_timeout(uint8_t iAddress)
+{
+	tl_global_t *pGlobal = tl_get_global();
+	
+	if(NULL != pGlobal->arrDevices[iAddress])
+	{
+		pGlobal->arrDevices[iAddress]->iStatus = TL_MODULE_ERR_TIMEOUT;
+	}	
+	
+	return OK;
+}
