@@ -1,4 +1,7 @@
 
+#export MIPS_CROSS=1
+
+ifdef MIPS_CROSS
 #Path to where I have the toolchain
 TOOLCHAIN_PATH=/home/workspace/TL/tools/toolchain-mipsel_4.1.1_BRCM24/
 TOOLCHAIN_BIN_PATH=$(TOOLCHAIN_PATH)bin/
@@ -15,40 +18,43 @@ CXX=$(TOOLCHAIN_BIN_PATH)mipsel-linux-uclibc-g++
 RANLIB=$(TOOLCHAIN_BIN_PATH)mipsel-linux-uclibc-ranlib
 ac_cv_linux_vers=2.4.37
 
-
 #Where the libs for current toolchain are
 LDFLAGS="-L$(TOOLCHAIN_LIB_PATH)"
-
-#Where the libs for current toolchain are
-LFLAGS="-L$(TOOLCHAIN_LIB_PATH)"
-#LFLAGS=""
 
 #Where the include files for current toolchain are
 #Trying with different compiler flags
 CFLAGS="-I$(TOOLCHAIN_PATH)include -Os -pipe -mips32 -mtune=mips32 -funit-at-a-time"
 #CFLAGS="-I$(TOOLCHAIN_PATH)include -D__KERNEL__ -Wall -Wstrict-prototypes -Wno-trigraphs -fno-strict-aliasing -fno-common -fno-builtin-strpbrk -fno-builtin-sprintf -fomit-frame-pointer  -funit-at-a-time  -fno-delayed-branch -mno-abicalls -pipe -DMODULE -mlong-calls"
 
-APP_NAME = tlight
-APP_FILES = linux_thread main_tlight tl_api tl_cfg_parse tl_controlers tl_packets tl_program tl_serial
-APP_OBJ = $(addsuffix .o, $(APP_FILES))
+else
 
-all: $(APP_NAME)
+CC=gcc 
+CFLAGS = -Wall -Werror -g -I.
+
+endif
+
+APP_NAME = tlight
+APP_FILES = linux_thread linux_sem main_tlight tl_cfg_parse \
+			tl_controlers tl_packets tl_program tl_serial \
+			tl_api tl_log
+			
+CFG_NAME = mgmt_tlight
+CFG_FILES = main_tl_mgmt tl_mgmt_client	
+			
+APP_OBJ = $(addsuffix .o, $(APP_FILES))
+CFG_OBJ = $(addsuffix .o, $(CFG_FILES))
+
+all: $(APP_NAME) $(CFG_NAME)
 
 $(APP_NAME): $(APP_OBJ)
 	$(CC) -o $(APP_NAME) $(APP_OBJ)
 
-#main: helloworld.o echo_sample
-#	$(CC) $(LDFLAGS) -o helloworld helloworld.o
+$(CFG_NAME): $(CFG_OBJ)
+	$(CC) -o $(CFG_NAME) $(CFG_OBJ)
 
-#helloworld.o: helloworld.c 
-#	$(CC) $(CFLAGS) -c helloworld.c
+clean:
+	rm -f $(APP_NAME) $(CFG_NAME) *.o *~
 
-#echo_sample: echo_sample.o 
-#	$(CC) $(LDFLAGS) -o echo_sample echo_sample.o
 
-#echo_sample.o: echo_sample.c 
-#	$(CC) $(CFLAGS) -c echo_sample.c
 
-clean: 
-	rm -f $(APP_NAME) *.o *~
 
