@@ -1,12 +1,13 @@
 #include "os_linux.h"
 #include "linux_thread.h"
 #include "tl_types.h"
+#include "tl_api.h"
 #include "tl_serial.h"
 #include "tl_program.h"
 #include "tl_packets.h"
 #include "tl_controlers.h"
 #include "tl_config.h"
-#include "tl_api.h"
+#include "tl_log.h"
 
 uint8_t tl_char2hex(uint8_t iChar)
 {
@@ -28,14 +29,12 @@ uint8_t tl_hex2char(uint8_t iChar)
 
 int tl_can_pkt_checksum(char *arrCmd, char *arrCsum, uint8_t iSize)
 {
-	uint16_t iSum=0, i;
+	uint8_t iSum=0, i;
 	for(i=0; i<iSize; i++)
 		iSum += arrCmd[i];
-	iSum = ~iSum;
+	iSum = ~iSum+1;
 	arrCsum[0] = tl_hex2char((iSum & 0xF0) >> 4);
 	arrCsum[1] = tl_hex2char(iSum & 0x0F);	
-	arrCmd[iSize] = 
-	arrCmd[iSize+1] = tl_hex2char(iSum & 0x0F);
 	return OK;
 }
 
@@ -162,9 +161,17 @@ int tl_command_extract(char *arrCommand, uint32_t iLen, t_can_packet_t *pPacket)
 
 	i = 0;	
 	if(TL_PKT_START != arrCommand[i++] || TL_PKT_END != arrCommand[iLen] || iLen < 8)
+	{
+		if(TL_IS_DEBUG(RX))
+			tl_log_error("Received packet with broken header / lenght, discarding");
 		return ERROR;
+	}
 	if(OK != tl_can_pkt_checksum_check(arrCommand+1, iLen - 4));
+	{
+		if(TL_IS_DEBUG(RX))
+			tl_log_error("Received packet with broken checksum, discarding");
 		return ERROR;			
+	}
 	pPacket->iCommand = tl_char2hex(arrCommand[i++]);
 	pPacket->iAddress = ((tl_char2hex(arrCommand[i++]) & 0x0F) << 4 );
 	pPacket->iAddress |= (tl_char2hex(arrCommand[i++]) & 0x0F);
@@ -172,7 +179,11 @@ int tl_command_extract(char *arrCommand, uint32_t iLen, t_can_packet_t *pPacket)
 	for(j=0; j<pPacket->iLen; j++ )
 	{
 		if(i >= (iLen - 3))
+		{
+			if(TL_IS_DEBUG(RX))
+				tl_log_error("Received packet with broken format, discarding");		
 			return ERROR;
+		}
 		pPacket->arrData[j] = ((tl_char2hex(arrCommand[i++]) & 0x0F) << 4 );
 		pPacket->arrData[j] |= (tl_char2hex(arrCommand[i++]) & 0x0F);
 	}
@@ -191,6 +202,8 @@ int tl_com_pkt_process(tl_com_t *pCom)
 			TL_MODULE_MASTER == pGlobal->arrDevices[stPacket.iAddress]->iType) )
 		{
 			pCom->iLineSate = TL_COM_IDLE;
+			if(TL_IS_DEBUG(RX))
+				tl_log_info("Recived packet %d: [%s]", stPacket.iCommand, pCom->arrRecived );
 			if(TL_CMD_WD_RESPONCE_F == stPacket.iCommand)
 				pCom->iLineSate = TL_COM_PKT_WAIT;
 			if(	TL_CMD_WD_RESPONCE == stPacket.iCommand || 

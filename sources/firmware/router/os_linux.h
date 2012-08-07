@@ -14,6 +14,8 @@
 #include <errno.h>
 #include <ctype.h>
 #include <endian.h>
+#include <syslog.h> 
+#include <semaphore.h> 
  
 #include <sys/time.h>
 #include <sys/stat.h>
@@ -21,6 +23,8 @@
 #include <sys/un.h>
 #include <sys/socket.h>
 #include <sys/signal.h>
+#include <sys/sem.h>
+#include <sys/ipc.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>

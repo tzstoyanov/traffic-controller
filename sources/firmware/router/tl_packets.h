@@ -33,6 +33,7 @@
 #define TL_MODULE_ERR_COMM		3
 #define TL_MODULE_ERR_SLAVE		4
 #define TL_MODULE_ERR_TIMEOUT	5
+#define TL_MODULE_ERR_MISMATCH	6
 
 #define TL_PKT_START	':'
 #define TL_PKT_END		'\n'

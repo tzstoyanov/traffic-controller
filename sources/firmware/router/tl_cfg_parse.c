@@ -1,12 +1,13 @@
 #include "os_linux.h"
 #include "linux_thread.h"
 #include "tl_types.h"
+#include "tl_api.h"
 #include "tl_serial.h"
 #include "tl_program.h"
 #include "tl_packets.h"
 #include "tl_controlers.h"
 #include "tl_config.h"
-#include "tl_api.h"
+#include "tl_log.h"
 
 static int tl_get_next_token(char **pszLine, char **pszString)
 {
@@ -95,6 +96,11 @@ int tl_parse_port_cfg(char *szPortCfg, tl_global_t *pGlobal)
 		default:
 			return ERROR;
 	}
+	
+	if(TL_IS_DEBUG(CONFIG))
+		tl_log_info("Got port speed %s (0x%X), data %c , parity %c (0x%X)", 
+					szPortCfg, szPortCfg[i+1], szPortCfg[i+2], pGlobal->stPort.iPortFlags) ;
+	
 	return OK;	
 }
 
@@ -108,31 +114,44 @@ int tl_parse_cfg_file(char *szFileName, tl_global_t *pGlobal)
 	uint8_t iGateId = 0, iType;
 	tl_controler_t *pControler;
 
+	if(TL_IS_DEBUG(CONFIG))
+		tl_log_info("Opening config file [%s]", szFileName);
+
 	pFile = fopen((char*)szFileName, "r");
 	if( NULL == pFile ) 
 	    return ERROR;
 	while( fgets((char*)szLine, 250, pFile))
 	{
-		if('#' == szLine[0])
+		if('#' == szLine[0] || !isalnum(szLine[0]) )
 			continue;
 		szToken = szLine;
 		szString = NULL;
+		if(TL_IS_DEBUG(CONFIG))
+			tl_log_info("Analyzing line [%s]", szLine);
+		
 		if(OK != tl_get_next_token(&szToken, &szString) || NULL == szString)
 			continue;
+			
 		if(0 == strncmp(szString, TL_PARAM_SYS_NAME, strlen(TL_PARAM_SYS_NAME)))
 		{
 			pGlobal->szCrossName = strdup(szLine);
+			if(TL_IS_DEBUG(CONFIG))
+				tl_log_info("Got systme name [%s]", pGlobal->szCrossName);
 		}else if(0 == strncmp(szString, TL_PARAM_COM, strlen(TL_PARAM_COM)))
 		{
 			szString = NULL;
 			if(OK != tl_get_next_token(&szToken, &szString) || NULL == szString)
 				continue;
-			pGlobal->stPort.szPortName = strdup(szString);			
+			pGlobal->stPort.szPortName = strdup(szString);
+			if(TL_IS_DEBUG(CONFIG))
+				tl_log_info("Got port name [%s]", pGlobal->stPort.szPortName);			
 		}else if(0 == strncmp(szString, TL_PARAM_COM_CFG, strlen(TL_PARAM_COM_CFG)))
 		{
 			szString = NULL;
 			if(OK != tl_get_next_token(&szToken, &szString) || NULL == szString)
 				continue;
+			if(TL_IS_DEBUG(CONFIG))
+				tl_log_info("Got port params [%s], going to parse it", szString);							
 			if(OK != tl_parse_port_cfg(szString, pGlobal))
 				continue;
 		}else if(0 == strncmp(szString, TL_PARAM_WD, strlen(TL_PARAM_WD)))
@@ -141,17 +160,23 @@ int tl_parse_cfg_file(char *szFileName, tl_global_t *pGlobal)
 			if(OK != tl_get_next_token(&szToken, &szString) || NULL == szString)
 				continue;
 			pGlobal->iWdInterval = atoi(szString);	
+			if(TL_IS_DEBUG(CONFIG))
+				tl_log_info("Got WD interval [%d]", pGlobal->iWdInterval);
 		}else if(0 == strncmp(szString, TL_PARAM_TIMEOUT, strlen(TL_PARAM_TIMEOUT)))
 		{
 			szString = NULL;
 			if(OK != tl_get_next_token(&szToken, &szString) || NULL == szString)
 				continue;
-			pGlobal->iTimeout = atoi(szString);			
+			pGlobal->iTimeout = atoi(szString);
+			if(TL_IS_DEBUG(CONFIG))
+				tl_log_info("Got Timeout interval [%d]", pGlobal->iTimeout);			
 		}else if(0 == strncmp(szString, TL_PARAM_MODULE, strlen(TL_PARAM_MODULE)))
 		{
 			szString = NULL;
 			if(OK != tl_get_next_token(&szToken, &szString) || NULL == szString)
 				continue;
+			if(TL_IS_DEBUG(CONFIG))
+				tl_log_info("Got Module [%s], going to parse it", szString);
 			if(0 == strncmp(szString, TL_PARAM_MASTER, strlen(TL_PARAM_MASTER)))
 				iType = TL_MODULE_MASTER;
 			else if(0 == strncmp(szString, TL_PARAM_GATE, strlen(TL_PARAM_GATE)))
@@ -162,7 +187,7 @@ int tl_parse_cfg_file(char *szFileName, tl_global_t *pGlobal)
 				iType = TL_MODULE_TIMER;
 			else
 			{
-				printf("\n\r Unkown module %s\n\r", szString);
+				tl_log_error("Unkown module [%s]", szString);
 				continue;
 			}
 			pControler = tl_NewControler(iType);
@@ -174,21 +199,31 @@ int tl_parse_cfg_file(char *szFileName, tl_global_t *pGlobal)
 				free(pControler);
 				continue;
 			}
+			pControler->szName = strdup(szString);
+			
+			if(OK != tl_get_next_token(&szToken, &szString) || NULL == szString)
+			{	
+				free(pControler);
+				continue;
+			}
 			iId = atoi(szString);
 			if(iId < 1 || iId > TL_MAX_CONTROLERS)
 			{
-				printf("\n\r Invalid controler ID %s (%d)\n\r", szString, iId);
+				tl_log_error("Invalid controler ID %s (%d)", szString, iId);
 				free(pControler);				
 				continue;
 			}
 			pControler->iId = iId;
 			if(NULL != pGlobal->arrDevices[iId])
 			{	
-				printf("\n\r Controler with ID %d already configured \n\r", iId);
+				tl_log_error("Controler with ID %d already configured", iId);
 				free(pControler);
 				continue;
 			}
 			pGlobal->arrDevices[iId] = pControler;
+			if(TL_IS_DEBUG(CONFIG))
+				tl_log_info("New Module configured: type %d, name %s, address %d", 
+										iType, pControler->szName, iId);			
 			if(TL_MODULE_MASTER == pControler->iType)
 				continue;
 			if(TL_MODULE_GATE == pControler->iType)
@@ -197,8 +232,10 @@ int tl_parse_cfg_file(char *szFileName, tl_global_t *pGlobal)
 				continue;
 			}
 			pControler->iGateId = iGateId;
+			if(TL_IS_DEBUG(CONFIG))
+				tl_log_info("The module is attached to gate %d", iGateId);	
 		}else
-			printf("\n\r Unkown parameter %s\n\r", szString);
+			tl_log_error("Unkown parameter %s", szString);
 	}
 	fclose(pFile);
 	return OK;
@@ -245,6 +282,10 @@ int tl_parse_prog_lamp(tl_controler_lamp_t *pLamp, char **pszString, tl_instruct
 	pInstr->u.stCommand.iDeviceId = pLamp->stHead.iId;
 	if( OK !=  tl_lamp_command_set(pInstr))
 		return ERROR;
+
+	if(TL_IS_DEBUG(CONFIG))
+		tl_log_info("Got Lamp %d state 0x%X (%s) instruction", 
+			pLamp->stHead.iId, pInstr->u.stCommand.state.stLamp.iState, iSegments);	
 
 	return OK;
 }
@@ -302,6 +343,15 @@ int tl_parse_prog_timer(tl_controler_timer_t *pTimer, char **pszString, tl_instr
 	if( OK !=  tl_timer_command_set(pInstr))
 		return ERROR;
 
+	if(TL_IS_DEBUG(CONFIG))
+		tl_log_info("Got Timer %d, action 0x%X, color %d, state [0x%X 0x%X 0x%X], len %d", 
+			pTimer->stHead.iId, pInstr->u.stCommand.state.stTimer.iCurrentAction, 
+			pInstr->u.stCommand.state.stTimer.iCurrentColor, 
+			pInstr->u.stCommand.state.stTimer.arrCurrentState[0],
+			pInstr->u.stCommand.state.stTimer.arrCurrentState[1],
+			pInstr->u.stCommand.state.stTimer.arrCurrentState[2],
+			pInstr->u.stCommand.state.stTimer.iStateLen);	
+			
 	return OK;
 }
 
@@ -318,6 +368,10 @@ int tl_parse_prog_file(char *szFileName, tl_program_t **ppProgram)
 
 	if(0 == iInstrCount || NULL == ppProgram)
 		return ERROR;
+
+	if(TL_IS_DEBUG(CONFIG))
+		tl_log_info("Opening program file [%s] with %d instructions", szFileName, iInstrCount);	
+		
 	pFile = fopen((char*)szFileName, "r");
 	if( NULL == pFile ) 
 	    return ERROR;
@@ -345,6 +399,8 @@ int tl_parse_prog_file(char *szFileName, tl_program_t **ppProgram)
 			iFail++;
 			break;
 		}
+		if(TL_IS_DEBUG(CONFIG))
+			tl_log_info("Analyzing line [%s], instruction %d", szLine, iCount);
 		szToken = szLine;
 		szString = NULL;
 		if(OK != tl_get_next_token(&szToken, &szString) || NULL == szString)
@@ -361,9 +417,13 @@ int tl_parse_prog_file(char *szFileName, tl_program_t **ppProgram)
 				break;
 			}
 			(*ppProgram)->arrInstructions[iCount].u.iDelay = atoi(szString);
+			if(TL_IS_DEBUG(CONFIG))
+				tl_log_info("Got program delay [%d]", (*ppProgram)->arrInstructions[iCount].u.iDelay);			
 		}else if(0 == strncmp(szString, TL_CMD_LOOP, strlen(TL_CMD_LOOP)))
 		{
 			(*ppProgram)->iLoopStep = iCount;
+			if(TL_IS_DEBUG(CONFIG))
+				tl_log_info("Got program loop at [%d]", (*ppProgram)->iLoopStep);	
 			continue;
 		}
 		else 
@@ -371,6 +431,8 @@ int tl_parse_prog_file(char *szFileName, tl_program_t **ppProgram)
 			pControler = tl_get_controler_byname(szString);
 			if(NULL != pControler )
 			{
+				if(TL_IS_DEBUG(CONFIG))	
+					tl_log_info("Found controler [%s] in local database", szString);			
 				switch(pControler->iType)
 				{
 					case TL_MODULE_TIMER:
@@ -385,7 +447,10 @@ int tl_parse_prog_file(char *szFileName, tl_program_t **ppProgram)
 				}
 			}
 			else
+			{
+				tl_log_error("Cannot find controler [%s] in local database", szString);
 				iRet = ERROR;
+			}
 			if(OK != iRet);
 			{
 				iFail++;				
@@ -398,7 +463,12 @@ int tl_parse_prog_file(char *szFileName, tl_program_t **ppProgram)
 	(*ppProgram)->iCount = iCount;
 	fclose(pFile);
 	if(0 == iFail)
+	{
+		if(TL_IS_DEBUG(CONFIG))	
+			tl_log_info("Program in file [%s] loaded, going to execute it", szFileName);				
 		return OK;
+	}
+	tl_log_error("Failed to parse program file [%s], prgram not loaded", szFileName);	
 	free((*ppProgram)->arrInstructions);
 	free(*ppProgram);
 	*ppProgram = NULL;

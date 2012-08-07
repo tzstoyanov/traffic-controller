@@ -3,7 +3,7 @@
 
 #define TL_PARAM_SYS_NAME	"SystemName"
 #define TL_PARAM_COM		"ComPort"
-#define TL_PARAM_COM_CFG	"ComPortCfg"
+#define TL_PARAM_COM_CFG	"ComCfg"
 #define TL_PARAM_WD			"WDInterval"
 #define TL_PARAM_TIMEOUT	"Timeout"
 #define TL_PARAM_MODULE		"Module"

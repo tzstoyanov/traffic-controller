@@ -35,7 +35,9 @@ typedef struct
 	tl_program_t *pCurrent;
 	main_thread_t stMaintThread;
 	thread_t	*pWDThread;	
-	thread_t	*pTimeOut;
+	int iApiFd;
+	thread_t	*pApiThread;
+	thread_t	*arrClients[TL_API_MAX_CONNECTIONS];
 }tl_global_t;
 
 tl_global_t *tl_get_global();
