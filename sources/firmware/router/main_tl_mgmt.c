@@ -34,7 +34,6 @@ void print_help(char *pPname)
 	printf("\t-v, --version\t\tVersion information%s", TL_LOG_NEWLINE);
 	print_help_debug();
 	fflush(stdout);
-	sleep(1);
 }
 
 int get_argument_value(char *szString, char **pszValue)
@@ -68,7 +67,7 @@ void set_debug(char *szArgument, char *szValue)
 		iCommand = TL_API_SET_DEBUG_FLAG;
 		iLen = 4;
 		pData = (uint8_t*)&iFlags;
-		iFlags = strtol(szArgument, NULL, 16);
+		iFlags = strtol(szValue, NULL, 16);
 	}else if(0 == strncmp(szArgument, "dest", strlen("dest")))
 	{
 		iCommand = TL_API_SET_DEBUG_DEST;

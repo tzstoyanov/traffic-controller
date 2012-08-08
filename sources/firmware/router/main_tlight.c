@@ -33,7 +33,6 @@ void print_help(char *pPname)
 	printf("\t\t 0x1000\tManagement requests%s", TL_LOG_NEWLINE);
 	
 	fflush(stdout);
-	sleep(1);
 }
 
 int32_t tl_wd_thread(thread_t *pThread)
@@ -96,7 +95,7 @@ int main(int argc, char **argv)
 					};
 
 	bzero(&stGlobal, sizeof(tl_global_t));
-	tl_log_init(TL_LOG2SYSLOG);
+	tl_log_init(TL_LOG2CONSOLE);
 	
 	while ( (iOpt = getopt_long( argc, argv, "c:vhd", stLongOptions, NULL )) != -1 )
 	{
@@ -107,7 +106,6 @@ int main(int argc, char **argv)
 				if(OK != tl_parse_cfg_file(optarg, &stGlobal))
 				{
 					tl_log_error("Error parsing the configuration file %s", optarg);
-					sleep(1);
 					exit(1);
 				}
 				iCfg = 1;

@@ -15,7 +15,7 @@ int tl_api_set_debug_flag(int iClient, uint32_t iCommand, uint32_t iLen, uint8_t
 {
 	if(4 != iLen)
 		return ERROR;
-	tl_debug_switch_set((*(uint32_t*)pData));
+	tl_debug_switch_set((*((uint32_t*)pData)));
 	return OK;
 }
 
@@ -66,7 +66,7 @@ int32_t tl_api_client_thread(thread_t *pThread)
 		pGlobal->arrClients[iClient] = NULL;
 	
 	iRet = read(iFd, &iCommand, 1);
-	if(0 > iRet)
+	if(0 >= iRet)
 	{
 		close(iFd);
 		return 0;
@@ -117,10 +117,13 @@ int32_t tl_api_accept_thread(thread_t *pThread)
 				pGlobal->arrClients[i] = thread_read_add(&(pGlobal->stMaintThread), tl_api_client_thread, (void*)i, iAccFd);
 				if(TL_IS_DEBUG(API))
 					tl_log_info("New management client %d accepted", i);
+				break;	
 			}
 		if(TL_API_MAX_CONNECTIONS == i)	
+		{
 			tl_log_error("Cannot accept new management client, limit %d reached", i);
-			
+			close(iAccFd);
+		}	
 	}	
 	
 	pGlobal->pApiThread = thread_read_add(&(pGlobal->stMaintThread), tl_api_accept_thread, pGlobal, iFd);
@@ -140,10 +143,15 @@ int tl_api_init()
 		return ERROR;
 	setsockopt(pGlobal->iApiFd, SOL_SOCKET, SO_REUSEADDR, (void *) &iOn, sizeof(iOn));
 	
+	unlink(stSockAddress.sun_path);
+	
 	if( 0 > bind(pGlobal->iApiFd, (struct sockaddr*)&stSockAddress, sizeof(struct sockaddr_un)))
 		return ERROR;
 	if(0 > listen(pGlobal->iApiFd, TL_API_MAX_CONNECTIONS))
 		return ERROR;
+
+	chmod(stSockAddress.sun_path, 
+		S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IWGRP | S_IXGRP | S_IROTH | S_IWOTH | S_IXOTH);
 		
 	pGlobal->pApiThread = thread_read_add(&(pGlobal->stMaintThread), tl_api_accept_thread, pGlobal, pGlobal->iApiFd);
 
