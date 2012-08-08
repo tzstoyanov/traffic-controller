@@ -6,8 +6,9 @@
 #include "tl_program.h"
 #include "tl_packets.h"
 #include "tl_controlers.h"
-#include "tl_config.h"
 #include "tl_log.h"
+#include "main_tlight.h"
+#include "tl_config.h"
 
 uint8_t tl_char2hex(uint8_t iChar)
 {

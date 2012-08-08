@@ -6,8 +6,9 @@
 #include "tl_program.h"
 #include "tl_packets.h"
 #include "tl_controlers.h"
-#include "tl_config.h"
 #include "tl_log.h"
+#include "main_tlight.h"
+#include "tl_config.h"
 
 static int tl_get_next_token(char **pszLine, char **pszString)
 {
@@ -110,7 +111,7 @@ int tl_parse_cfg_file(char *szFileName, tl_global_t *pGlobal)
 	char *szToken;
 	FILE *pFile;
 	char *szString;
-	int iId;	
+	int iId, iLen;	
 	uint8_t iGateId = 0, iType;
 	tl_controler_t *pControler;
 
@@ -134,12 +135,17 @@ int tl_parse_cfg_file(char *szFileName, tl_global_t *pGlobal)
 			
 		if(0 == strncmp(szString, TL_PARAM_SYS_NAME, strlen(TL_PARAM_SYS_NAME)))
 		{
-			pGlobal->szCrossName = strdup(szLine);
+			iLen = strlen(szToken);
+			while(iLen && !isalnum(szToken[iLen]) && !isblank(szToken[iLen]))
+			{
+				szToken[iLen] = 0;
+				iLen--;	
+			}	
+			pGlobal->szCrossName = strdup(szToken);
 			if(TL_IS_DEBUG(CONFIG))
 				tl_log_info("Got systme name [%s]", pGlobal->szCrossName);
 		}else if(0 == strncmp(szString, TL_PARAM_COM, strlen(TL_PARAM_COM)))
 		{
-			szString = NULL;
 			if(OK != tl_get_next_token(&szToken, &szString) || NULL == szString)
 				continue;
 			pGlobal->stPort.szPortName = strdup(szString);
@@ -389,7 +395,9 @@ int tl_parse_prog_file(char *szFileName, tl_program_t **ppProgram)
 		fclose(pFile);
 		return ERROR;
 	}
-
+	
+	(*ppProgram)->szProgramFile = strdup(szFileName);
+	
 	while( fgets((char*)szLine, 250, pFile))
 	{
 		if('#' == szLine[0])
@@ -470,6 +478,7 @@ int tl_parse_prog_file(char *szFileName, tl_program_t **ppProgram)
 	}
 	tl_log_error("Failed to parse program file [%s], prgram not loaded", szFileName);	
 	free((*ppProgram)->arrInstructions);
+	free((*ppProgram)->szProgramFile);
 	free(*ppProgram);
 	*ppProgram = NULL;
 	return ERROR;

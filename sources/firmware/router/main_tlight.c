@@ -7,10 +7,12 @@
 #include "tl_program.h"
 #include "tl_packets.h"
 #include "tl_controlers.h"
-#include "tl_config.h"
 #include "tl_log.h"
+#include "main_tlight.h"
+#include "tl_config.h"
 
 static tl_global_t stGlobal;
+uint32_t iTlightDebugSwitch = 0;
 
 void print_help(char *pPname)
 {
@@ -19,20 +21,33 @@ void print_help(char *pPname)
 	printf("\t-v, --version\t\tVersion information%s", TL_LOG_NEWLINE);
 	printf("\t-c, --config FILENAME\tConfiguration file%s", TL_LOG_NEWLINE);
 	printf("\t-d, --daemod\t\tRun in daemon mode%s", TL_LOG_NEWLINE);
-	printf("\t--debug HEX\t\tDebug flags, HEX is bitmask of:%s", TL_LOG_NEWLINE);
-	printf("\t\t 0x0001\tGateway related logs%s", TL_LOG_NEWLINE);
-	printf("\t\t 0x0002\tLamp related logs%s", TL_LOG_NEWLINE);	
-	printf("\t\t 0x0004\tTimer related logs%s", TL_LOG_NEWLINE);	
-	printf("\t\t 0x0010\tInit process%s", TL_LOG_NEWLINE);			
-	printf("\t\t 0x0020\tPackets receive%s", TL_LOG_NEWLINE);	
-	printf("\t\t 0x0040\tCfg Packets send%s", TL_LOG_NEWLINE);	
-	printf("\t\t 0x0080\tCmd Packets send%s", TL_LOG_NEWLINE);	
-	printf("\t\t 0x0100\tRequest Packets send%s", TL_LOG_NEWLINE);		
-	printf("\t\t 0x0200\tDump Packets contents%s", TL_LOG_NEWLINE);	
-	printf("\t\t 0x0800\tConfig files parse%s", TL_LOG_NEWLINE);	
-	printf("\t\t 0x1000\tManagement requests%s", TL_LOG_NEWLINE);
+	printf("\t--debug HEX\t\tDebug flags, HEX is bitmask of:%s", TL_LOG_NEWLINE);	
+	printf("\t\t %08X\tGateway related logs%s", TL_DEBUG_GATE, TL_LOG_NEWLINE);
+	printf("\t\t %08X\tLamp related logs%s", TL_DEBUG_LAMP, TL_LOG_NEWLINE);	
+	printf("\t\t %08X\tTimer related logs%s", TL_DEBUG_TIMER, TL_LOG_NEWLINE);	
+	printf("\t\t %08X\tInit process%s", TL_DEBUG_INIT, TL_LOG_NEWLINE);			
+	printf("\t\t %08X\tPackets receive%s", TL_DEBUG_RX, TL_LOG_NEWLINE);	
+	printf("\t\t %08X\tCfg Packets send%s", TL_DEBUG_TX_CFG, TL_LOG_NEWLINE);	
+	printf("\t\t %08X\tCmd Packets send%s", TL_DEBUG_TX_CMD, TL_LOG_NEWLINE);	
+	printf("\t\t %08X\tRequest Packets send%s", TL_DEBUG_TX_RQST, TL_LOG_NEWLINE);		
+	printf("\t\t %08X\tDump Packets contents%s", TL_DEBUG_PKT_DUMP, TL_LOG_NEWLINE);	
+	printf("\t\t %08X\tConfig files parse%s", TL_DEBUG_CONFIG, TL_LOG_NEWLINE);	
+	printf("\t\t %08X\tManagement requests%s", TL_DEBUG_API, TL_LOG_NEWLINE);
 	
 	fflush(stdout);
+}
+
+void tl_debug_switch_set(uint32_t iDebug)
+{
+	 iTlightDebugSwitch = iDebug;
+	 tl_log_info("Set debug flag to 0x%X", iDebug);
+}
+
+int tl_debug_get(uint32_t *pDebugSwitch, uint32_t *pLogDest)
+{
+	*pDebugSwitch = iTlightDebugSwitch;
+	*pLogDest = iTlLogDestination;
+	return OK;
 }
 
 int32_t tl_wd_thread(thread_t *pThread)
@@ -42,7 +57,7 @@ int32_t tl_wd_thread(thread_t *pThread)
 	tl_global_t *pGlobal = (tl_global_t*)pThread->pArg;
 	pGlobal->pWDThread = NULL;
 
-	for(i=0; i<TL_MAX_CONTROLERS; i++)
+	for(i=1; i<TL_MAX_CONTROLERS; i++)
 	{
 		if(NULL == pGlobal->arrDevices[i])
 			break;
@@ -95,7 +110,8 @@ int main(int argc, char **argv)
 					};
 
 	bzero(&stGlobal, sizeof(tl_global_t));
-	tl_log_init(TL_LOG2CONSOLE);
+	
+	tl_log_init(TL_LOG2CONSOLE, TL_LOG_PREFIX);
 	
 	while ( (iOpt = getopt_long( argc, argv, "c:vhd", stLongOptions, NULL )) != -1 )
 	{

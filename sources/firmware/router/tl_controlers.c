@@ -6,8 +6,9 @@
 #include "tl_program.h"
 #include "tl_packets.h"
 #include "tl_controlers.h"
-#include "tl_config.h"
 #include "tl_log.h"
+#include "main_tlight.h"
+#include "tl_config.h"
 
 int tl_controler_check_common(uint8_t *arrStatus)
 {
@@ -96,28 +97,29 @@ tl_controler_t *tl_NewControler(uint8_t iType)
 	{
 		case TL_MODULE_MASTER:
 			pControler = calloc(1, sizeof(tl_controler_t));
+			pControler->iStatus = TL_MODULE_ERR_OK;
 			break;
 		case TL_MODULE_GATE:
 			pControler = calloc(1, sizeof(tl_controler_t));
 			pControler->fVerifyState = tl_controler_check_gate;
+			pControler->iStatus = TL_MODULE_ERR_INIT;
 			break;
 		case TL_MODULE_LAMP:
 			pControler = calloc(1, sizeof(tl_controler_lamp_t));				
 			pControler->fVerifyState = tl_controler_check_module;
+			pControler->iStatus = TL_MODULE_ERR_INIT;
 			break;
 		case TL_MODULE_TIMER:
 			pControler = calloc(1, sizeof(tl_controler_timer_t));		
 			pControler->fVerifyState = tl_controler_check_module;
+			pControler->iStatus = TL_MODULE_ERR_INIT;
 			break;
 		default:
 			tl_log_error("Uknown controler type %d", iType);
 			return NULL;
 	}
 	if(NULL != pControler)
-	{
 		pControler->iType = iType;
-		pControler->iStatus = TL_MODULE_ERR_INIT;
-	}
 	return pControler;	
 }
 
@@ -126,7 +128,7 @@ tl_controler_t *tl_get_controler_byname(char *szName)
 	int i;
 	tl_global_t *pGlobal = tl_get_global();
 	
-	for(i=0; i<TL_MAX_CONTROLERS; i++)
+	for(i=1; i<TL_MAX_CONTROLERS; i++)
 	{
 	 if(NULL == pGlobal->arrDevices[i])
 		return NULL;
@@ -247,7 +249,7 @@ int tl_ask_controler_state(uint8_t iAddress)
 	tl_global_t *pGlobal = tl_get_global();
 	if(TL_COM_IDLE != pGlobal->stPort.iLineSate)
 		return ERROR;
-	if(OK != tl_wdrequest_command_set(pGlobal->stPort.arrSend, iAddress, pGlobal->arrDevices[0]->iId))
+	if(OK != tl_wdrequest_command_set(pGlobal->stPort.arrSend, iAddress, pGlobal->arrDevices[1]->iId))
 		return ERROR;
 	if(TL_IS_DEBUG(TX_RQST))
 	{
@@ -260,16 +262,18 @@ int tl_ask_controler_state(uint8_t iAddress)
  	return tl_com_send_session(&(pGlobal->stPort), iAddress, TL_COM_LOCAL_VERIFY_WAIT);
 }
 
-int tl_check_controlers()
+int tl_check_controlers(uint8_t *pAll, uint8_t *pOk, uint8_t *pFail)
 {
 	int i, iOk=0, iFail=0;
 	tl_global_t *pGlobal = tl_get_global();
 		
-	for(i=0; i<TL_MAX_CONTROLERS; i++)
+	for(i=1; i<TL_MAX_CONTROLERS; i++)
 	{
 		if(NULL == pGlobal->arrDevices[i])
 			break;
-		tl_ask_controler_state(i);
+		
+		if(TL_MODULE_MASTER != pGlobal->arrDevices[i]->iType)
+			tl_ask_controler_state(i);
 		if(TL_MODULE_ERR_OK == pGlobal->arrDevices[i]->iStatus)
 			iOk++;
 		else
@@ -285,8 +289,30 @@ int tl_check_controlers()
 	}
 
 	if(TL_IS_DEBUG(INIT))
-		tl_log_info("Checked controlers state, total %d: %d OK, %d Fail", i, iOk, iFail);	
+		tl_log_info("Checked controlers state, total %d: %d OK, %d Fail", i-1, iOk, iFail);	
 	
+	return OK;	
+}
+
+int tl_controlers_get_state(uint8_t *pAll, uint8_t *pOk, uint8_t *pFail)
+{
+	int i, iOk=0, iFail=0;
+	tl_global_t *pGlobal = tl_get_global();
+		
+	for(i=1; i<TL_MAX_CONTROLERS; i++)
+	{
+		if(NULL == pGlobal->arrDevices[i])
+			break;
+
+		if(TL_MODULE_ERR_OK == pGlobal->arrDevices[i]->iStatus)
+			iOk++;
+		else
+			iFail++;
+	}
+	*pAll = i-1;
+	*pOk = iOk;
+	*pFail = iFail;	
+		
 	return OK;	
 }
 
@@ -304,3 +330,4 @@ int tl_controler_timeout(uint8_t iAddress)
 
 	return OK;
 }
+

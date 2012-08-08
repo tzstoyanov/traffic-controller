@@ -1,9 +1,7 @@
 #include "os_linux.h"
-#include "linux_thread.h"
 #include "tl_types.h"
 #include "tl_api.h"
 #include "tl_log.h"
-#include "tl_mgmt_client.h"
 
 int tl_mgmt_connect()
 {
@@ -33,7 +31,7 @@ int tl_mgmt_connect()
 	return -1;
 }
 
-int tl_mgmt_send(int iFd, uint8_t iCommand, uint8_t iLen, uint8_t *pData)
+int tl_mgmt_send(int iFd, uint8_t iCommand, uint32_t iLen, uint8_t *pData)
 {
  int iRet;
  
@@ -52,6 +50,11 @@ int tl_mgmt_send(int iFd, uint8_t iCommand, uint8_t iLen, uint8_t *pData)
 			return ERROR;
 	}
 	return OK;	
+}
+
+int tl_mgmt_get(int iFd, uint8_t *pData, uint32_t iLen)
+{
+	return read(iFd, pData, iLen);
 }
 
 

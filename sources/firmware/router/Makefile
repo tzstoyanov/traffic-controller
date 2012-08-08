@@ -39,10 +39,10 @@ APP_FILES = linux_thread linux_sem main_tlight tl_cfg_parse \
 			tl_api tl_log
 			
 CFG_NAME = mgmt_tlight
-CFG_FILES = main_tl_mgmt tl_mgmt_client	
+CFG_FILES = tl_log mgmt_tl_main mgmt_tl_client mgmt_tl_debug mgmt_tl_status
 			
 APP_OBJ = $(addsuffix .o, $(APP_FILES))
-CFG_OBJ = $(addsuffix .o, $(CFG_FILES))
+CFG_OBJ = $(addsuffix .o, $(CFG_FILES)) 
 
 all: $(APP_NAME) $(CFG_NAME)
 

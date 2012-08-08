@@ -6,12 +6,20 @@
 #include "tl_program.h"
 #include "tl_packets.h"
 #include "tl_controlers.h"
-#include "tl_config.h"
 #include "tl_log.h"
+#include "main_tlight.h"
+#include "tl_config.h"
 
-typedef int (*tl_api_callback_t)(int iClient, uint32_t iCommand, uint32_t iLen, uint8_t *pData);
+typedef int (*tl_api_callback_t)(int iClient, int iFd, uint32_t iCommand, uint32_t iLen, uint8_t *pData);
 
-int tl_api_set_debug_flag(int iClient, uint32_t iCommand, uint32_t iLen, uint8_t *pData)
+int tl_api_reply(int iFd, uint8_t *pData, uint32_t iDataLen)
+{
+	if(-1 == iFd)
+		return 0;
+	return write(iFd, pData, iDataLen);
+}
+
+int tl_api_set_debug_flag(int iClient, int iFd, uint32_t iCommand, uint32_t iLen, uint8_t *pData)
 {
 	if(4 != iLen)
 		return ERROR;
@@ -19,11 +27,91 @@ int tl_api_set_debug_flag(int iClient, uint32_t iCommand, uint32_t iLen, uint8_t
 	return OK;
 }
 
-int tl_api_set_debug_dest(int iClient, uint32_t iCommand, uint32_t iLen, uint8_t *pData)
+int tl_api_set_debug_dest(int iClient, int iFd, uint32_t iCommand, uint32_t iLen, uint8_t *pData)
 {
 	if(4 != iLen)
 		return ERROR;
 	tl_log_dest_set(*(uint32_t*)pData);
+	return OK;
+}
+
+int tl_api_get_status(int iClient, int iFd, uint32_t iCommand, uint32_t iLen, uint8_t *pData)
+{
+	uint32_t iDebugSwitch, iLogDest;
+	tl_api_status_t stStatus;
+	tl_global_t *pGlobal = tl_get_global();
+	tl_debug_get(&iDebugSwitch, &iLogDest);
+	strncpy(stStatus.szCrossName, pGlobal->szCrossName, 128); stStatus.szCrossName[127]=0;
+	strncpy(stStatus.szComPort, pGlobal->stPort.szPortName, 64); stStatus.szComPort[63]=0;
+	stStatus.iWdInterval = pGlobal->iWdInterval;
+	stStatus.iCommTimeout = pGlobal->iTimeout;
+	stStatus.iDebugFlags = iDebugSwitch;
+	stStatus.iLogDest = iLogDest;
+	stStatus.szProgInProgress[0]=0;
+	if(pGlobal->pCurrent)
+	{
+		strncpy(stStatus.szProgInProgress, pGlobal->pCurrent->szProgramFile, 128); 
+		stStatus.szProgInProgress[127]=0;
+	}
+	tl_controlers_get_state(&stStatus.iDeviceNumber, &stStatus.iDeviceOk, &stStatus.iDeviceError);
+	
+	tl_api_reply(iFd, (uint8_t*)&stStatus, sizeof(stStatus));
+	return OK;
+}
+
+/*
+	uint8_t	iAddress;
+	uint8_t iType;
+	char szName[64];
+	uint8_t iGateId;
+	uint8_t	iStatus;
+	union
+	{
+		tl_lamp_state_t stLamp;
+		tl_timer_state_t stTimer;
+	}u;
+*/
+int tl_api_get_status_mod(int iClient, int iFd, uint32_t iCommand, uint32_t iLen, uint8_t *pData)
+{
+	uint8_t i;
+	tl_api_status_mod_t stMod;
+	tl_global_t *pGlobal = tl_get_global();
+	
+	for(i=1; i<TL_MAX_CONTROLERS; i++)
+		if(NULL == pGlobal->arrDevices[i])
+			break;
+	i--;		
+	tl_api_reply(iFd, (uint8_t*)&i, sizeof(i));
+	if(i)
+	{
+		for(i=1; i<TL_MAX_CONTROLERS; i++)
+		{
+			if(NULL == pGlobal->arrDevices[i])
+				break;
+			stMod.iAddress = i;
+			stMod.iType	= pGlobal->arrDevices[i]->iType;
+			strncpy(stMod.szName, pGlobal->arrDevices[i]->szName, 64); stMod.szName[63]=0;
+			stMod.iGateId = pGlobal->arrDevices[i]->iGateId;
+			stMod.iStatus = pGlobal->arrDevices[i]->iStatus;
+			if(TL_MODULE_LAMP == stMod.iType)
+				memcpy(&stMod.u.stLamp, 
+						&(((tl_controler_lamp_t*)(pGlobal->arrDevices[i]))->stCurrentState),	
+						sizeof(tl_lamp_state_t ));
+			else if	(TL_MODULE_TIMER == stMod.iType)
+				memcpy(&stMod.u.stTimer, 
+						&(((tl_controler_timer_t*)(pGlobal->arrDevices[i]))->stCurrentState),	
+						sizeof(tl_timer_state_t ));
+	
+			tl_api_reply(iFd, (uint8_t*)&stMod, sizeof(stMod));		
+		}
+	}
+	
+	return OK;
+}
+
+int tl_api_get_status_prog(int iClient, int iFd, uint32_t iCommand, uint32_t iLen, uint8_t *pData)
+{
+
 	return OK;
 }
 
@@ -34,17 +122,20 @@ struct
 }arrTlApiDispacth[]=
 {
 	{TL_API_SET_DEBUG_FLAG, tl_api_set_debug_flag},
-	{TL_API_SET_DEBUG_DEST, tl_api_set_debug_dest}
+	{TL_API_SET_DEBUG_DEST, tl_api_set_debug_dest},
+	{TL_API_GET_STATUS, tl_api_get_status},
+	{TL_API_GET_STATUS_MOD, tl_api_get_status_mod},
+	{TL_API_GET_STATUS_PROG, tl_api_get_status_prog}
 };
 
-int tl_api_command_proccess(int iClient, uint8_t iCmd, uint8_t iLen, uint8_t *pData)
+int tl_api_command_proccess(int iClient, int iFd, uint8_t iCmd, uint8_t iLen, uint8_t *pData)
 {
 	int i, iTableSize, iRet = ERROR;
 	
 	iTableSize = sizeof(arrTlApiDispacth)/sizeof(arrTlApiDispacth[0]);	
 	for(i=0; i<iTableSize; i++)
 		if(iCmd == arrTlApiDispacth[i].iCommand && NULL != arrTlApiDispacth[i].fCallback)
-			iRet = arrTlApiDispacth[i].fCallback(iClient, iCmd, iLen, pData);	
+			iRet = arrTlApiDispacth[i].fCallback(iClient, iFd, iCmd, iLen, pData);	
 
 	if(TL_IS_DEBUG(API))
 		tl_log_info("Command 0x%X, lenght %d recived from client %d: %s", 
@@ -94,7 +185,7 @@ int32_t tl_api_client_thread(thread_t *pThread)
 		}
 	}
 	
-	tl_api_command_proccess(iClient, iCommand, iLen, pData);
+	tl_api_command_proccess(iClient, iFd, iCommand, iLen, pData);
 	
 	if(iClient < TL_API_MAX_CONNECTIONS)
 		pGlobal->arrClients[iClient] = thread_read_add(&(pGlobal->stMaintThread), tl_api_client_thread, (void*)iClient, iFd);

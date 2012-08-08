@@ -1,8 +1,6 @@
 #ifndef __TLIGHT_LOG_H__
 #define __TLIGHT_LOG_H__
 
-#define TL_LOG_PREFIX	"TL"
-
 typedef enum
 {
 	TL_LOG2NULL = 0,
@@ -10,7 +8,7 @@ typedef enum
 	TL_LOG2SYSLOG = 2
 }tl_log_dest_t;
 
-extern uint32_t iTlightDebugSwitch;
+extern tl_log_dest_t iTlLogDestination;
 
 #define TL_DEBUG_DEVICES	0x000F
 #define TL_DEBUG_GATE		0x0001		
@@ -27,13 +25,10 @@ extern uint32_t iTlightDebugSwitch;
 #define TL_DEBUG_CONFIG		0x0800
 #define TL_DEBUG_API		0x1000
 
-#define TL_IS_DEBUG(x) (iTlightDebugSwitch & TL_DEBUG_ ## x)
-
 #define TL_LOG_NEWLINE	"\n\r"
 
-int tl_log_init(tl_log_dest_t  iDest);
+int tl_log_init(tl_log_dest_t  iDest, char *szPrefix);
 void tl_log_dest_set(tl_log_dest_t  iDest);
-void tl_debug_switch_set(uint32_t iDebug);
 
 void tl_log_info(const char *format, ... );
 void tl_log_error(const char *format, ... );

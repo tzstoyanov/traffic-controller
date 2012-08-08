@@ -6,8 +6,9 @@
 #include "tl_program.h"
 #include "tl_packets.h"
 #include "tl_controlers.h"
-#include "tl_config.h"
 #include "tl_log.h"
+#include "main_tlight.h"
+#include "tl_config.h"
 
 static int tl_program_send_cmd(tl_global_t *pGlobal, char *szCommand, uint8_t iAddress)
 {
