@@ -9,19 +9,32 @@ int iClientFd=-1;
 
 void print_help_debug()
 {
-	printf("\t--debug flag=HEX\tSet Debug flags\n");
-	printf("\t--debug dest=NAME\tSet Debug destination, where NAME can be:\n");
-	printf("\t\tNULL\t\tDo not log\n");
-	printf("\t\tConsole\t\tLog to console\n");
-	printf("\t\tSyslog\t\tLog to Syslog\n");
+	printf("\t--debug flag=HEX\tSet Debug flags, HEX is bitmask of: %s", TL_LOG_NEWLINE);
+	printf("\t\t 0x0001\tGateway related logs%s", TL_LOG_NEWLINE);
+	printf("\t\t 0x0002\tLamp related logs%s", TL_LOG_NEWLINE);	
+	printf("\t\t 0x0004\tTimer related logs%s", TL_LOG_NEWLINE);	
+	printf("\t\t 0x0010\tInit process%s", TL_LOG_NEWLINE);			
+	printf("\t\t 0x0020\tPackets receive%s", TL_LOG_NEWLINE);	
+	printf("\t\t 0x0040\tCfg Packets send%s", TL_LOG_NEWLINE);	
+	printf("\t\t 0x0080\tCmd Packets send%s", TL_LOG_NEWLINE);	
+	printf("\t\t 0x0100\tRequest Packets send%s", TL_LOG_NEWLINE);		
+	printf("\t\t 0x0200\tDump Packets contents%s", TL_LOG_NEWLINE);	
+	printf("\t\t 0x0800\tConfig files parse%s", TL_LOG_NEWLINE);	
+	printf("\t\t 0x1000\tManagement requests%s", TL_LOG_NEWLINE);	
+	printf("\t--debug dest=NAME\tSet Debug destination, where NAME can be:%s", TL_LOG_NEWLINE);
+	printf("\t\tNULL\t\tDo not log%s", TL_LOG_NEWLINE);
+	printf("\t\tConsole\t\tLog to console%s", TL_LOG_NEWLINE);
+	printf("\t\tSyslog\t\tLog to Syslog%s", TL_LOG_NEWLINE);
 }
 
 void print_help(char *pPname)
 {
-	printf("Usage: %s [OPIONS]\n", pPname);
-	printf("\t-h, --help\t\tHelp\n");
-	printf("\t-v, --version\t\tVersion information\n");
+	printf("Usage: %s [OPIONS]%s", pPname, TL_LOG_NEWLINE);
+	printf("\t-h, --help\t\tHelp%s", TL_LOG_NEWLINE);
+	printf("\t-v, --version\t\tVersion information%s", TL_LOG_NEWLINE);
 	print_help_debug();
+	fflush(stdout);
+	sleep(1);
 }
 
 int get_argument_value(char *szString, char **pszValue)
@@ -86,8 +99,9 @@ void set_debug(char *szArgument, char *szValue)
 		return;
 	}
 	
-	printf("\n\rUknown debug arguments %s,%s, Usage:", szArgument, szValue);
+	printf("Uknown debug arguments %s,%s, Usage:", szArgument, szValue);
 	print_help_debug();
+	fflush(stdout);
 }
 
 int main(int argc, char **argv)

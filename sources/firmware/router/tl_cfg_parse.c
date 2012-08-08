@@ -12,7 +12,7 @@
 static int tl_get_next_token(char **pszLine, char **pszString)
 {
 	int i=0, j=0;
-	while(0 != (*pszLine)[i] && !isalnum((*pszLine)[i])) i++;
+	while(0 != (*pszLine)[i] && !isalnum((*pszLine)[i]) && '/' != (*pszLine)[i]) i++;
 	if(0 == (*pszLine)[i])
 		return ERROR;
 	j=i;

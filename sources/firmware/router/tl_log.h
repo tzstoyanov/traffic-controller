@@ -29,7 +29,7 @@ extern uint32_t iTlightDebugSwitch;
 
 #define TL_IS_DEBUG(x) (iTlightDebugSwitch & TL_DEBUG_ ## x)
 
-#define TL_LOG_NEWLINE	"\n"
+#define TL_LOG_NEWLINE	"\n\r"
 
 int tl_log_init(tl_log_dest_t  iDest);
 void tl_log_dest_set(tl_log_dest_t  iDest);

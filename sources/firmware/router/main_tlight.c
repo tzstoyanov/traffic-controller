@@ -14,12 +14,26 @@ static tl_global_t stGlobal;
 
 void print_help(char *pPname)
 {
-	printf("Usage: %s [OPIONS]\n", pPname);
-	printf("\t-h, --help\t\tHelp\n");
-	printf("\t-v, --version\t\tVersion information\n");
-	printf("\t-c, --config FILENAME\t\tMain configuration file\n");
-	printf("\t-d, --daemod\t\tRun in daemon mode\n");
-	printf("\t--debug HEX\t\tDebug flags\n");
+	printf("Usage: %s [OPIONS]%s", pPname, TL_LOG_NEWLINE);
+	printf("\t-h, --help\t\tHelp%s", TL_LOG_NEWLINE);
+	printf("\t-v, --version\t\tVersion information%s", TL_LOG_NEWLINE);
+	printf("\t-c, --config FILENAME\tConfiguration file%s", TL_LOG_NEWLINE);
+	printf("\t-d, --daemod\t\tRun in daemon mode%s", TL_LOG_NEWLINE);
+	printf("\t--debug HEX\t\tDebug flags, HEX is bitmask of:%s", TL_LOG_NEWLINE);
+	printf("\t\t 0x0001\tGateway related logs%s", TL_LOG_NEWLINE);
+	printf("\t\t 0x0002\tLamp related logs%s", TL_LOG_NEWLINE);	
+	printf("\t\t 0x0004\tTimer related logs%s", TL_LOG_NEWLINE);	
+	printf("\t\t 0x0010\tInit process%s", TL_LOG_NEWLINE);			
+	printf("\t\t 0x0020\tPackets receive%s", TL_LOG_NEWLINE);	
+	printf("\t\t 0x0040\tCfg Packets send%s", TL_LOG_NEWLINE);	
+	printf("\t\t 0x0080\tCmd Packets send%s", TL_LOG_NEWLINE);	
+	printf("\t\t 0x0100\tRequest Packets send%s", TL_LOG_NEWLINE);		
+	printf("\t\t 0x0200\tDump Packets contents%s", TL_LOG_NEWLINE);	
+	printf("\t\t 0x0800\tConfig files parse%s", TL_LOG_NEWLINE);	
+	printf("\t\t 0x1000\tManagement requests%s", TL_LOG_NEWLINE);
+	
+	fflush(stdout);
+	sleep(1);
 }
 
 int32_t tl_wd_thread(thread_t *pThread)
@@ -93,6 +107,7 @@ int main(int argc, char **argv)
 				if(OK != tl_parse_cfg_file(optarg, &stGlobal))
 				{
 					tl_log_error("Error parsing the configuration file %s", optarg);
+					sleep(1);
 					exit(1);
 				}
 				iCfg = 1;
