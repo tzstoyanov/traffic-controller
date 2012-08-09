@@ -9,10 +9,13 @@ int tl_mgmt_connect();
 int tl_mgmt_send(int iFd, uint8_t iCommand, uint8_t *pData, uint32_t iLen);
 int tl_mgmt_get(int iFd, uint8_t *pData, uint32_t iLen);
 
-void print_help_debug();
-void process_debug(char *szArgument, char *szValue);
+void print_help_program();
+void process_program(char *szArgument, char *szValue);
 
 void print_help_status();
 void process_status(char *szArgument, char *szValue);
+
+void print_help_debug();
+void process_debug(char *szArgument, char *szValue);
 
 #endif /* __TLIGHT_MGMT_MAIN_H__ */

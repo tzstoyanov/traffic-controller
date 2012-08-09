@@ -22,6 +22,7 @@ void get_status()
 		tl_log_info("\tSystem name: %s", stStatus.szCrossName);
 		tl_log_info("\t%d devices: %d OK, %d Failed", 
 				stStatus.iDeviceNumber, stStatus.iDeviceOk, stStatus.iDeviceError);
+		tl_log_info("\tCritical errors %d, warnings %d", stStatus.iCritError ,stStatus.iWarning );		
 		tl_log_info("\tWatchdog interval %d msec", stStatus.iWdInterval);
 		tl_log_info("\tCommunication port: %s", stStatus.szComPort);
 		tl_log_info("\tCommunication timeout %d msec", stStatus.iCommTimeout);
@@ -35,70 +36,37 @@ void get_status()
 	}
 }
 
-char *module_type2string(uint8_t iType)
+void print_status_lamp(char *szGaps, tl_lamp_state_t *pLamp)
 {
-	switch(iType)
-	{
-		case TL_MODULE_MASTER:	return "Master";
-		case TL_MODULE_GATE:	return "Gateway";
-		case TL_MODULE_LAMP:	return "Lamp";
-		case TL_MODULE_TIMER:	return "Timer";
-		default: break;
-	}
-	return "Uknown";
+	tl_log_info("%sSegments state: 0x%X", szGaps, pLamp->iState);
 }
 
-char *module_status2string(uint8_t iStatus)
+void print_status_timer(char *szGaps, tl_timer_state_t *pTimer)
 {
-	switch(iStatus)
-	{
-		case TL_MODULE_ERR_OK:			return "OK";
-		case TL_MODULE_ERR_INIT:		return "Init";
-		case TL_MODULE_ERR_HW:			return "Hardware failure";
-		case TL_MODULE_ERR_COMM:		return "Communication error";
-		case TL_MODULE_ERR_SLAVE:		return "Slave error detedted";
-		case TL_MODULE_ERR_TIMEOUT:		return "Communication timeout";
-		case TL_MODULE_ERR_MISMATCH:	return "State mismatch";
-		default: break;
-	}
-	return "Uknown";
+	if(TL_TIMER_ACT_COUNTDOWN == pTimer->iCurrentAction)
+		tl_log_info("%sTimer countdown %ds in %s color", szGaps,
+				pTimer->arrCurrentState[0], 
+				tl_color2string(pTimer->iCurrentColor));
+	if(TL_TIMER_ACT_STATIC == pTimer->iCurrentAction)
+		tl_log_info("%sDislay static segments 0x%X 0x%X 0x%X in %s color", szGaps,
+					pTimer->arrCurrentState[0], 
+					pTimer->arrCurrentState[1], 
+					pTimer->arrCurrentState[2], 
+					tl_color2string(pTimer->iCurrentColor));
 }
 
-char *module_color2string(uint8_t iColor)
-{
-	switch(iColor)
-	{
-		case TL_TIMER_COLOR_GREEN: return "Green";
-		case TL_TIMER_COLOR_RED: return "Red";
-		default: break;
-	}
-	return "Uknown";
-}
-
-void printf_status_mod(tl_api_status_mod_t *pModStatus)
+void print_status_mod(tl_api_status_mod_t *pModStatus)
 {
 	tl_log_info("\t %s of type %s at adderess %d, [%s]", 
-			pModStatus->szName, module_type2string(pModStatus->iType), 
-			pModStatus->iAddress, module_status2string(pModStatus->iStatus));
+			pModStatus->szName, tl_type2string(pModStatus->iType), 
+			pModStatus->iAddress, tl_status2string(pModStatus->iStatus));
 	if(pModStatus->iGateId)		
 		tl_log_info("\t  Connected to gate %d", pModStatus->iGateId);
 	
 	if(TL_MODULE_LAMP == pModStatus->iType)
-	{
-		tl_log_info("\t  Segments state: 0x%X", pModStatus->u.stLamp.iState);
-	}else if(TL_MODULE_TIMER == pModStatus->iType)
-	{
-		if(TL_TIMER_ACT_COUNTDOWN == pModStatus->u.stTimer.iCurrentAction)
-			tl_log_info("\t  Timer countdown %ds in %s color", 
-					pModStatus->u.stTimer.arrCurrentState[0], 
-					module_color2string(pModStatus->u.stTimer.iCurrentColor));
-		else if(TL_TIMER_ACT_STATIC == pModStatus->u.stTimer.iCurrentAction)
-			tl_log_info("\t  Dislay static segments 0x%X 0x%X 0x%X in %s color", 
-					pModStatus->u.stTimer.arrCurrentState[0], 
-					pModStatus->u.stTimer.arrCurrentState[1], 
-					pModStatus->u.stTimer.arrCurrentState[2], 
-					module_color2string(pModStatus->u.stTimer.iCurrentColor));
-	}
+		print_status_lamp("\t  ", &(pModStatus->u.stLamp));
+	if(TL_MODULE_TIMER == pModStatus->iType)
+		print_status_timer("\t  ", &(pModStatus->u.stTimer));
 }
 
 void get_status_mod()
@@ -112,18 +80,28 @@ void get_status_mod()
 		for(i=0; i<iModNum; i++)
 			if(sizeof(stModStatus) == 
 					tl_mgmt_get(get_client_fd(), (uint8_t*)(&stModStatus), sizeof(stModStatus) ))
-				printf_status_mod(&stModStatus);
+				print_status_mod(&stModStatus);
 	}
 }
 
-void printf_status_instruction(tl_api_status_instr_t *pInstruction)
+void print_cmd_instruction(tl_api_status_instr_t *pInstruction)
 {
-
+	tl_log_info("\t   [%s]: %s at address %d, ", 
+		pInstruction->stInstruction.u.stCommand.arrCommand,
+		tl_type2string(pInstruction->stInstruction.u.stCommand.iType),
+		pInstruction->stInstruction.u.stCommand.iDeviceId);
+	if(TL_MODULE_LAMP == pInstruction->stInstruction.u.stCommand.iType)
+		print_status_lamp("\t    ", &(pInstruction->stInstruction.u.stCommand.state.stLamp));
+	if(TL_MODULE_TIMER == pInstruction->stInstruction.u.stCommand.iType)
+		print_status_timer("\t    ", &(pInstruction->stInstruction.u.stCommand.state.stTimer));
 }
 
-void printf_status_program(tl_api_status_prog_t *pProgram)
+void print_status_program(tl_api_status_prog_t *pProgram)
 {
-
+	tl_log_info("\t Program %s, %s:", 
+		pProgram->szFileName, tl_prrogramstate2string(pProgram->iState));
+	tl_log_info("\t  Executed %d times, loop at step %d, %d instructions:", 
+			pProgram->iLoopCount, pProgram->iLoopStep, pProgram->iInstrCount);
 }
 
 void get_status_prog()
@@ -140,16 +118,31 @@ void get_status_prog()
 			if(sizeof(stProgram) == 
 					tl_mgmt_get(get_client_fd(), (uint8_t*)(&stProgram), sizeof(stProgram) ))
 			{
-				printf_status_program(&stProgram);
-				for(j=0; i<stProgram.iInstrCount; j++)
+				print_status_program(&stProgram);
+				for(j=0; j<stProgram.iInstrCount; j++)
+				{
 					if(sizeof(stInstruction) == 
 						tl_mgmt_get(get_client_fd(), (uint8_t*)(&stInstruction), sizeof(stInstruction) ))
-						printf_status_instruction(&stInstruction);
-			}		
-		}
-	}	
+					{
+						switch(stInstruction.stInstruction.iType)
+						{	
+							case TL_INSTR_DELAY: 
+								tl_log_info("\t   Delay %d ms", stInstruction.stInstruction.u.iDelay);
+								break;
+							case TL_INSTR_CMD:
+								print_cmd_instruction(&stInstruction);
+								break;
+							default:
+								tl_log_info("\t   Unkown %d", stInstruction.stInstruction.iType);
+								break;
+						}	
+					}		
+				}	
+			}
+		}	
 
-}
+	}
+}		
 
 void process_status(char *szArgument, char *szValue)
 {
@@ -174,9 +167,10 @@ void process_status(char *szArgument, char *szValue)
 		tl_log_info("Uknown status arguments %s,%s, Usage:", szArgument, szValue);
 		print_help_status();
 		fflush(stdout);
+		return;
 	}
 	
-	if(OK == tl_mgmt_send(get_client_fd(), iCommand,  NULL, 0))
+	if(OK == tl_mgmt_send(get_client_fd(), iCommand, NULL, 0))
 	{
 		switch(iCommand)
 		{
@@ -194,3 +188,4 @@ void process_status(char *szArgument, char *szValue)
 		}
 	}
 }
+

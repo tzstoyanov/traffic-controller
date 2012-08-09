@@ -10,6 +10,7 @@ typedef struct
 	char *szName;
 	uint8_t iGateId;
 	uint8_t	iStatus;
+	uint8_t iCritical;
 	tl_controler_check_callback_t fVerifyState;
 }tl_controler_t;
 
@@ -32,5 +33,6 @@ int tl_ask_controler_state(uint8_t iAddress);
 int tl_update_controler_state(tl_instruction_t *pCommand);
 int tl_controler_timeout(uint8_t iAddress);
 int tl_controlers_get_state(uint8_t *pAll, uint8_t *pOk, uint8_t *pFail);
+int tl_send_failsafe();
 
 #endif /* __TLIGHT_DBASE_H__ */

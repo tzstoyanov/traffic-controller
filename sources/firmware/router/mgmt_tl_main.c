@@ -9,9 +9,11 @@ int iClientFd=-1;
 void print_help(char *pPname)
 {
 	tl_log_info("Usage: %s [OPIONS]", pPname);
-	tl_log_info("\t-h, --help\t\tHelp");
-	tl_log_info("\t-v, --version\t\tVersion information");
-	tl_log_info("\t--syslog\t\tPrint output in syslog");
+	tl_log_info("\t-h, --help\tHelp");
+	tl_log_info("\t-v, --version\tVersion information");
+	tl_log_info("\t--syslog\tPrint output in syslog");
+	tl_log_info("\t--stop\t\tStop main application");
+	print_help_program();
 	print_help_status();
 	print_help_debug();
 }
@@ -50,6 +52,8 @@ int main(int argc, char **argv)
 						{"debug", 1, 0, 3},
 						{"status", 1, 0, 4},
 						{"syslog", 0, 0, 5},
+						{"program", 1, 0, 6},
+						{"stop", 0, 0, 7},
 						{0, 0, 0, 0}
 					};
 	
@@ -69,6 +73,13 @@ int main(int argc, char **argv)
 				break;
 			case 5: /* syslog */
 				tl_log_dest_set(TL_LOG2SYSLOG);
+				break;	
+			case 6: /* program */	
+				if(OK == get_argument_value(optarg,&szSubOpts))
+					process_program(optarg,szSubOpts);			
+				break;
+			case 7: /* stop */
+				tl_mgmt_send(get_client_fd(), TL_API_STOP, NULL, 0);
 				break;	
 			case 2:
 			case 'v':

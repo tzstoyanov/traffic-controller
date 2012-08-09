@@ -1,20 +1,28 @@
 #ifndef __TLIGHT_API_H__
 #define __TLIGHT_API_H__
 
-#include "tl_log.h"
 #include "tl_program_api.h"
+#include "tl_log.h"
 
 #define TL_API_MAX_CONNECTIONS	5
 #define TL_API_SOCKET_NAME	"/tmp/tlight_api_sock"
 
 #define TL_API_SET_DEBUG_FLAG	1	/* uint32_t - debug flags */
 #define TL_API_SET_DEBUG_DEST	2	/* tl_log_dest_t log destination */
-#define TL_API_SET_PROGRAM		3	/* uint8_t mode, char* szName - file name with the new program, with full path to it */
+#define TL_API_SET_PROGRAM		3	/* tl_api_program_t - load type and file name of the new program, with full path to it */
 #define TL_API_GET_STATUS		4 	/* tl_api_status_t */
 #define TL_API_GET_STATUS_MOD	5	/* uint8_t num, num*tl_api_status_mod_type */
 #define TL_API_GET_STATUS_PROG	6	/* uint8_t num, num*(tl_api_status_prog_t + iInstrCount*tl_api_status_instr_t) */
+#define TL_API_STOP				8	/* Stop application */
 
 int tl_api_init();
+
+typedef struct tl_api_program_type tl_api_program_t;
+struct tl_api_program_type
+{
+	tl_program_load_t iType;
+	char	szProgName[128];
+}__attribute__((__packed__));
 
 typedef struct tl_api_status_type tl_api_status_t;
 struct tl_api_status_type
@@ -29,6 +37,8 @@ struct tl_api_status_type
 	uint8_t iDeviceNumber;
 	uint8_t iDeviceOk;
 	uint8_t iDeviceError;
+	uint32_t iCritError;
+	uint32_t iWarning;
 }__attribute__((__packed__));
 
 typedef struct tl_api_status_mod_type tl_api_status_mod_t;
@@ -49,9 +59,10 @@ struct tl_api_status_mod_type
 typedef struct tl_api_status_prog_type tl_api_status_prog_t;
 struct tl_api_status_prog_type
 {
-	uint8_t iMode;
-	uint8_t iState;
-	uint32_t iRunCount;
+	tl_program_load_t iLoadMode;
+	tl_program_state_t iState;
+	uint32_t iLoopCount;
+	uint32_t iLoopStep;
 	char	szFileName[512];
 	uint32_t iInstrCount;
 }__attribute__((__packed__));

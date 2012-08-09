@@ -13,7 +13,11 @@
 int tl_com_local_pkt_verify(tl_com_t *pCom)
 {
 	if(pCom->iRcvSize != pCom->iSendSize || 0 != memcmp(pCom->arrSend, pCom->arrRecived, pCom->iRcvSize))
+	{
 		tl_log_error("Local Echo check failed !");
+		pCom->iLineSate = TL_COM_IDLE;
+		return ERROR;
+	}
 	if(TL_COM_LOCAL_VERIFY_WAIT == pCom->iLineSate)
 		pCom->iLineSate = TL_COM_PKT_WAIT;
 	else
@@ -64,7 +68,11 @@ int tl_com_read_packet(tl_com_t *pCom)
 				break;
 		}
 	}
-
+	else
+	{
+		tl_log_error("Received broken packet");
+		pCom->iLineSate = TL_COM_IDLE;
+	}
 	pCom->iRcvSize = 0;
 	pCom->arrRecived[0]=0;
 	return OK;
@@ -115,6 +123,7 @@ int tl_com_send_session(tl_com_t *pCom, uint8_t iAddress, uint8_t iNextState)
 	if(0 == iRet)
 	{
 		tl_controler_timeout(iAddress);
+		pCom->iLineSate = TL_COM_IDLE;
 		return ERROR;
 	}
 	if(OK !=  tl_com_read_packet(pCom));

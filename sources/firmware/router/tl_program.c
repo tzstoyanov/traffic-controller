@@ -24,7 +24,10 @@ static int32_t tl_program_delay(thread_t *pThread)
  	tl_program_t *pProgram = (tl_program_t*)pThread->pArg;
 	pProgram->iCurrentStep++;
 	 if(pProgram->iCount == pProgram->iCurrentStep)
+	 {
 		pProgram->iCurrentStep = pProgram->iLoopStep;	
+		pProgram->iLoopCount++;
+	 }		
 	pProgram->pDelayThread = NULL;
 	tl_program_step(pProgram);
 	return 1;
@@ -36,7 +39,7 @@ int tl_program_step(tl_program_t *pProgram)
 	struct timeval stDelay;
 	tl_global_t *pGlobal = tl_get_global();
 	
-	if(NULL != pProgram->pDelayThread)
+	if(NULL != pProgram->pDelayThread || TL_PROGRAM_RUNNING != pProgram->iState)
 		return ERROR;
 	while(TL_INSTR_CMD == pProgram->arrInstructions[pProgram->iCurrentStep].iType)
 	{
@@ -48,7 +51,10 @@ int tl_program_step(tl_program_t *pProgram)
 		}
 		pProgram->iCurrentStep++;
 		if(pProgram->iCount == pProgram->iCurrentStep)
+		{
 			pProgram->iCurrentStep = pProgram->iLoopStep;
+			pProgram->iLoopCount++;
+		}
 	}
 	if(TL_INSTR_DELAY == pProgram->arrInstructions[pProgram->iCurrentStep].iType)
 	{
@@ -58,5 +64,68 @@ int tl_program_step(tl_program_t *pProgram)
 	}
 	return OK;
 }
+
+void tl_program_free(tl_program_t **ppProgram)
+{
+	if(NULL == ppProgram || NULL == (*ppProgram))
+		return;
+		
+	if((*ppProgram)->pDelayThread)
+		thread_cancel((*ppProgram)->pDelayThread);
+	if((*ppProgram)->szProgramFile)
+		free((*ppProgram)->szProgramFile);
+	if((*ppProgram)->arrInstructions)
+		free((*ppProgram)->arrInstructions);
+	free((*ppProgram));
+	(*ppProgram) = NULL;
+}
+
+int tl_program_stop(tl_program_t *pProgram)
+{
+	if(NULL == pProgram)
+		return ERROR;
+	pProgram->iState = TL_PROGRAM_PAUSE;
+	if(pProgram->pDelayThread)
+		thread_cancel(pProgram->pDelayThread);
+	pProgram->pDelayThread = NULL;
+	return OK;	
+}
+
+int tl_program_reset(tl_program_t *pProgram)
+{
+	if(NULL == pProgram)
+		return ERROR;
+	pProgram->iState = TL_PROGRAM_RUNNING;
+	pProgram->iCurrentStep = 0;
+	pProgram->iLoopCount = 0;
+	return tl_program_step(pProgram);
+}
+
+int tl_program_change(tl_api_program_t *pApiProgram)
+{
+	tl_program_t *pNewProgram=NULL;
+
+	tl_global_t *pGlobal = tl_get_global();
+	if(NULL == pApiProgram)
+		return ERROR;
+	if(OK != tl_parse_prog_file(pApiProgram->szProgName, &pNewProgram) || NULL == pNewProgram)
+		return ERROR;
+	pNewProgram->iLoadMode = pApiProgram->iType;
+	switch(pApiProgram->iType)
+	{
+		case TL_PROGRAM_REPLACE:
+			tl_program_free(&(pGlobal->pCurrentProgram));
+			pGlobal->pCurrentProgram = pNewProgram;
+			if(0 == pGlobal->iCritError)
+				tl_program_reset(pGlobal->pCurrentProgram);
+			break;
+		case TL_PROGRAM_INTERUPT:
+		default:
+			tl_program_free(&pNewProgram);
+			return ERROR;
+	}
+	return OK;
+}
+
 
 

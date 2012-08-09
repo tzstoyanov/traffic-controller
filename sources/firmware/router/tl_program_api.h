@@ -1,6 +1,18 @@
 #ifndef __TLIGHT_PROGRAM_API_H__
 #define __TLIGHT_PROGRAM_API_H__
 
+typedef enum
+{
+	TL_PROGRAM_REPLACE = 0,
+	TL_PROGRAM_INTERUPT
+}tl_program_load_t;
+
+typedef enum
+{
+	TL_PROGRAM_RUNNING,
+	TL_PROGRAM_PAUSE
+}tl_program_state_t;
+
 typedef struct
 {
 	uint8_t	iState;
@@ -24,6 +36,7 @@ typedef struct
 {
 	char arrCommand[TL_MAX_PACKET_SERIAL_SIZE ];
 	uint8_t iDeviceId;
+	uint8_t iType;
 	union
 	{
 		tl_lamp_state_t stLamp;

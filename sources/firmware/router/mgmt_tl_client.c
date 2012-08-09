@@ -31,7 +31,7 @@ int tl_mgmt_connect()
 	return -1;
 }
 
-int tl_mgmt_send(int iFd, uint8_t iCommand, uint32_t iLen, uint8_t *pData)
+int tl_mgmt_send(int iFd, uint8_t iCommand, uint8_t *pData, uint32_t iLen)
 {
  int iRet;
  

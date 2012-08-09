@@ -19,6 +19,15 @@ int tl_api_reply(int iFd, uint8_t *pData, uint32_t iDataLen)
 	return write(iFd, pData, iDataLen);
 }
 
+int tl_api_stop(int iClient, int iFd, uint32_t iCommand, uint32_t iLen, uint8_t *pData)
+{
+ tl_global_t *pGlobal = tl_get_global();
+	tl_send_failsafe();
+	tl_log_info("Enter in FailSafe mode and exit the application");
+	tl_program_stop(pGlobal->pCurrentProgram);
+	exit(0);	
+}
+
 int tl_api_set_debug_flag(int iClient, int iFd, uint32_t iCommand, uint32_t iLen, uint8_t *pData)
 {
 	if(4 != iLen)
@@ -35,11 +44,20 @@ int tl_api_set_debug_dest(int iClient, int iFd, uint32_t iCommand, uint32_t iLen
 	return OK;
 }
 
+int tl_api_set_program(int iClient, int iFd, uint32_t iCommand, uint32_t iLen, uint8_t *pData)
+{
+	if(sizeof(tl_api_program_t) != iLen)
+		return ERROR;
+	return tl_program_change((tl_api_program_t*)pData);
+}
+
+
 int tl_api_get_status(int iClient, int iFd, uint32_t iCommand, uint32_t iLen, uint8_t *pData)
 {
 	uint32_t iDebugSwitch, iLogDest;
 	tl_api_status_t stStatus;
 	tl_global_t *pGlobal = tl_get_global();
+	
 	tl_debug_get(&iDebugSwitch, &iLogDest);
 	strncpy(stStatus.szCrossName, pGlobal->szCrossName, 128); stStatus.szCrossName[127]=0;
 	strncpy(stStatus.szComPort, pGlobal->stPort.szPortName, 64); stStatus.szComPort[63]=0;
@@ -47,10 +65,12 @@ int tl_api_get_status(int iClient, int iFd, uint32_t iCommand, uint32_t iLen, ui
 	stStatus.iCommTimeout = pGlobal->iTimeout;
 	stStatus.iDebugFlags = iDebugSwitch;
 	stStatus.iLogDest = iLogDest;
+	stStatus.iCritError = pGlobal->iCritError;
+	stStatus.iWarning = pGlobal->iWarning;	
 	stStatus.szProgInProgress[0]=0;
-	if(pGlobal->pCurrent)
+	if(pGlobal->pCurrentProgram)
 	{
-		strncpy(stStatus.szProgInProgress, pGlobal->pCurrent->szProgramFile, 128); 
+		strncpy(stStatus.szProgInProgress, pGlobal->pCurrentProgram->szProgramFile, 128); 
 		stStatus.szProgInProgress[127]=0;
 	}
 	tl_controlers_get_state(&stStatus.iDeviceNumber, &stStatus.iDeviceOk, &stStatus.iDeviceError);
@@ -59,18 +79,6 @@ int tl_api_get_status(int iClient, int iFd, uint32_t iCommand, uint32_t iLen, ui
 	return OK;
 }
 
-/*
-	uint8_t	iAddress;
-	uint8_t iType;
-	char szName[64];
-	uint8_t iGateId;
-	uint8_t	iStatus;
-	union
-	{
-		tl_lamp_state_t stLamp;
-		tl_timer_state_t stTimer;
-	}u;
-*/
 int tl_api_get_status_mod(int iClient, int iFd, uint32_t iCommand, uint32_t iLen, uint8_t *pData)
 {
 	uint8_t i;
@@ -111,7 +119,36 @@ int tl_api_get_status_mod(int iClient, int iFd, uint32_t iCommand, uint32_t iLen
 
 int tl_api_get_status_prog(int iClient, int iFd, uint32_t iCommand, uint32_t iLen, uint8_t *pData)
 {
+	uint8_t iCount=0;
+	uint32_t i;
+	tl_api_status_prog_t stProgram;
+	tl_api_status_instr_t stInstr;
+	tl_global_t *pGlobal = tl_get_global();
+	
+	if(NULL == pGlobal->pCurrentProgram)
+	{
+		tl_api_reply(iFd, (uint8_t*)&iCount, sizeof(iCount));	
+		return OK;
+	}	
+	iCount = 1;
+	stProgram.iLoadMode = pGlobal->pCurrentProgram->iLoadMode;
+	stProgram.iState = pGlobal->pCurrentProgram->iState;
+	stProgram.iLoopCount = pGlobal->pCurrentProgram->iLoopCount;
+	stProgram.iLoopStep = pGlobal->pCurrentProgram->iLoopStep;
+	stProgram.iInstrCount = pGlobal->pCurrentProgram->iCount;
+	strncpy(stProgram.szFileName, pGlobal->pCurrentProgram->szProgramFile, 512);
+	stProgram.szFileName[511]=0;
 
+	tl_api_reply(iFd, (uint8_t*)&iCount, sizeof(iCount));	
+	tl_api_reply(iFd, (uint8_t*)&stProgram, sizeof(stProgram));
+	
+	for(i=0; i<stProgram.iInstrCount; i++)
+	{
+		memcpy(&(stInstr.stInstruction), 
+			&(pGlobal->pCurrentProgram->arrInstructions[i]), sizeof(stInstr.stInstruction) );
+		tl_api_reply(iFd, (uint8_t*)&stInstr, sizeof(stInstr));	
+	}
+	
 	return OK;
 }
 
@@ -123,9 +160,11 @@ struct
 {
 	{TL_API_SET_DEBUG_FLAG, tl_api_set_debug_flag},
 	{TL_API_SET_DEBUG_DEST, tl_api_set_debug_dest},
-	{TL_API_GET_STATUS, tl_api_get_status},
+	{TL_API_SET_PROGRAM, 	tl_api_set_program},
+	{TL_API_GET_STATUS, 	tl_api_get_status},
 	{TL_API_GET_STATUS_MOD, tl_api_get_status_mod},
-	{TL_API_GET_STATUS_PROG, tl_api_get_status_prog}
+	{TL_API_GET_STATUS_PROG,tl_api_get_status_prog},
+	{TL_API_STOP,			tl_api_stop},
 };
 
 int tl_api_command_proccess(int iClient, int iFd, uint8_t iCmd, uint8_t iLen, uint8_t *pData)

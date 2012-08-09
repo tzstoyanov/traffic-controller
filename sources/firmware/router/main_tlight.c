@@ -50,6 +50,38 @@ int tl_debug_get(uint32_t *pDebugSwitch, uint32_t *pLogDest)
 	return OK;
 }
 
+void tl_check_system_status()
+{
+	uint32_t iCritical=0, iWarning = 0, i;
+	tl_global_t *pGlobal = tl_get_global();
+	
+	for(i=1; i<TL_MAX_CONTROLERS; i++)
+	{
+		if(NULL == pGlobal->arrDevices[i])
+			break;
+		if( TL_MODULE_ERR_OK != pGlobal->arrDevices[i]->iStatus)
+		{
+			if(pGlobal->arrDevices[i]->iCritical)
+				iCritical++;
+			else
+				iWarning++;
+		}
+	}
+	if(pGlobal->iCritError && 0 == iCritical)	
+	{
+		tl_log_info("Restore from critical error, reset current program");
+		tl_program_reset(pGlobal->pCurrentProgram);	
+	}
+	if(iCritical && 0 == pGlobal->iCritError)
+	{
+		tl_send_failsafe();
+		tl_log_error("Critical error detected, enter in FailSafe mode");
+		tl_program_stop(pGlobal->pCurrentProgram);
+	}
+	pGlobal->iCritError = iCritical;
+	pGlobal->iWarning = iWarning;
+}
+
 int32_t tl_wd_thread(thread_t *pThread)
 {
 	int i;
@@ -80,7 +112,7 @@ tl_global_t *tl_get_global()
 void tl_daemonzie(int iSem)
 {
 	pid_t pid, sid;
-	
+
 	pid = fork();
 	if(pid < 0)
 		exit(1);
@@ -153,7 +185,7 @@ int main(int argc, char **argv)
 	if(iDaemon)
 	{
 		iSem = sem_create(SEM_EMPTY);
-		if(iSem > 0)
+		if(iSem < 0)
 			exit(1);
 		tl_daemonzie(iSem);
 	}

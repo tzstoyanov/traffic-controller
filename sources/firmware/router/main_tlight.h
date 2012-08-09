@@ -3,14 +3,18 @@
 
 #define TL_LOG_PREFIX	"TL"
 
+void tl_check_system_status();
+
 typedef struct
 {
 	char *szCrossName;
 	tl_com_t stPort;
 	int32_t iWdInterval;
 	int32_t	iTimeout;
+	uint32_t iCritError;
+	uint32_t iWarning;
 	tl_controler_t *arrDevices[TL_MAX_CONTROLERS];
-	tl_program_t *pCurrent;
+	tl_program_t *pCurrentProgram;
 	main_thread_t stMaintThread;
 	thread_t	*pWDThread;	
 	int iApiFd;

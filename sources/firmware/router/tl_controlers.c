@@ -17,30 +17,41 @@ int tl_controler_check_common(uint8_t *arrStatus)
 	uint8_t iPktType = (arrStatus[1] & 0xE0) >> 5;
 	uint8_t iState = (arrStatus[1] & 10) >> 4;
 	uint8_t iStatus = (arrStatus[1] & 0x0F);
+	uint8_t iNewStatus;
+	
 	if(NULL == pGlobal->arrDevices[iAddress])
 		return ERROR;
 	if(pGlobal->arrDevices[iAddress]->iType != iPktType)
 		return ERROR;
+		
 	if(TL_MODULE_STATE_OK == iState)
 	{
-		pGlobal->arrDevices[iAddress]->iStatus = TL_MODULE_ERR_OK;
+		iNewStatus = TL_MODULE_ERR_OK;
 		if(TL_MODULE_LAMP == iPktType)
-		{
 			if(((tl_controler_lamp_t*)(pGlobal->arrDevices[iAddress]))->stCurrentState.iState != iStatus)
 			{
-				pGlobal->arrDevices[iAddress]->iStatus = TL_MODULE_ERR_MISMATCH;
+				iNewStatus = TL_MODULE_ERR_MISMATCH;
 				tl_log_error("State mismatch of %s (%d): 0x%X != 0x%X !", 
 						pGlobal->arrDevices[iAddress]->szName, iAddress, 
 						((tl_controler_lamp_t*)(pGlobal->arrDevices[iAddress]))->stCurrentState.iState,
-						iStatus );
-				return ERROR;
+						iStatus );				
 			}
-		}
-		return OK;
-	}
-	pGlobal->arrDevices[iAddress]->iStatus = iStatus;
-	
-	switch(iStatus)
+	}else
+		iNewStatus = iStatus;
+
+	if(iNewStatus != pGlobal->arrDevices[iAddress]->iStatus)
+	{
+		if(TL_MODULE_ERR_OK == iNewStatus)
+			tl_log_info("Module %s is back to normal operation", pGlobal->arrDevices[iAddress]->szName);
+		else
+			tl_log_error("%s for module %s at adress %d", 
+				tl_status2string(iNewStatus), pGlobal->arrDevices[iAddress]->szName, iAddress);
+	}	
+
+	pGlobal->arrDevices[iAddress]->iStatus = iNewStatus;
+	tl_check_system_status();
+
+	switch(iNewStatus)
 	{
 		case TL_MODULE_ERR_OK:
 			return OK;
@@ -54,13 +65,14 @@ int tl_controler_check_common(uint8_t *arrStatus)
 			break;
 		case TL_MODULE_ERR_TIMEOUT:
 			break;
+		case TL_MODULE_ERR_MISMATCH:
+			break;	
 		default:
 			break;
 	}
 	
-	tl_log_error("Error of %s (%d): 0x%X", 
-			pGlobal->arrDevices[iAddress]->szName, iAddress, iStatus );
-
+	if(TL_MODULE_ERR_OK == iNewStatus)
+		return OK;
 	return ERROR;
 }
 
@@ -98,21 +110,25 @@ tl_controler_t *tl_NewControler(uint8_t iType)
 		case TL_MODULE_MASTER:
 			pControler = calloc(1, sizeof(tl_controler_t));
 			pControler->iStatus = TL_MODULE_ERR_OK;
+			pControler->iCritical = 1;
 			break;
 		case TL_MODULE_GATE:
 			pControler = calloc(1, sizeof(tl_controler_t));
 			pControler->fVerifyState = tl_controler_check_gate;
 			pControler->iStatus = TL_MODULE_ERR_INIT;
+			pControler->iCritical = 0;
 			break;
 		case TL_MODULE_LAMP:
 			pControler = calloc(1, sizeof(tl_controler_lamp_t));				
 			pControler->fVerifyState = tl_controler_check_module;
 			pControler->iStatus = TL_MODULE_ERR_INIT;
+			pControler->iCritical = 1;
 			break;
 		case TL_MODULE_TIMER:
 			pControler = calloc(1, sizeof(tl_controler_timer_t));		
 			pControler->fVerifyState = tl_controler_check_module;
 			pControler->iStatus = TL_MODULE_ERR_INIT;
+			pControler->iCritical = 0;
 			break;
 		default:
 			tl_log_error("Uknown controler type %d", iType);
@@ -262,6 +278,20 @@ int tl_ask_controler_state(uint8_t iAddress)
  	return tl_com_send_session(&(pGlobal->stPort), iAddress, TL_COM_LOCAL_VERIFY_WAIT);
 }
 
+int tl_send_failsafe()
+{
+	tl_global_t *pGlobal = tl_get_global();
+	if(TL_COM_IDLE != pGlobal->stPort.iLineSate)
+		return ERROR;
+	if(OK != tl_failsafe_command_set(pGlobal->stPort.arrSend))
+		return ERROR;
+	if(TL_IS_DEBUG(TX_CMD))	
+	{
+		tl_log_info("Send FailSafe state packet to all devices");
+	}
+ 	return tl_com_send_session(&(pGlobal->stPort), TL_ADDRESS_BCAST, TL_COM_LOCAL_VERIFY);	
+}
+
 int tl_check_controlers(uint8_t *pAll, uint8_t *pOk, uint8_t *pFail)
 {
 	int i, iOk=0, iFail=0;
@@ -322,12 +352,15 @@ int tl_controler_timeout(uint8_t iAddress)
 	
 	if(iAddress < TL_MAX_CONTROLERS && NULL != pGlobal->arrDevices[iAddress])
 	{
+		if(TL_MODULE_ERR_TIMEOUT != pGlobal->arrDevices[iAddress]->iStatus)
+		{
+			tl_log_error("%s for module %s at adress %d", 
+				tl_status2string(TL_MODULE_ERR_TIMEOUT), 
+				pGlobal->arrDevices[iAddress]->szName, iAddress);
+		}
 		pGlobal->arrDevices[iAddress]->iStatus = TL_MODULE_ERR_TIMEOUT;
-		tl_log_error("Timeout with controler %s (%d) at address %d",
-			pGlobal->arrDevices[iAddress]->szName, 
-			pGlobal->arrDevices[iAddress]->iType, iAddress);		
 	}	
-
+ 	tl_check_system_status();
 	return OK;
 }
 

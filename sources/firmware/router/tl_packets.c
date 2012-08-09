@@ -123,6 +123,20 @@ int tl_lamp_command_set(tl_instruction_t *pCommand)
 	return	tl_can_pkt_encode(&stPacket, pCommand->u.stCommand.arrCommand);
 }
 
+int tl_failsafe_command_set(char *arrCommand)
+{
+	t_can_packet_t stPacket;
+	bzero(&stPacket, sizeof(stPacket));
+	
+	stPacket.iCommand = TL_CMD_STATE;
+	stPacket.iAddress = TL_ADDRESS_BCAST;
+	stPacket.iLen = 1;
+	stPacket.arrData[0] = (	(TL_MODULE_ALL & 0x07) << 5) | 
+							(TL_ALL_STATE_FAILSAFE & 0x0F);
+	
+	return	tl_can_pkt_encode(&stPacket, arrCommand);
+}
+
 int tl_wdrequest_command_set(char *arrCommand, uint8_t iDstId, uint8_t iSrcId)
 {
 	t_can_packet_t stPacket;
@@ -195,14 +209,14 @@ int tl_com_pkt_process(tl_com_t *pCom)
 {
 	t_can_packet_t stPacket;
 	tl_global_t *pGlobal = tl_get_global();
-	
+
+	pCom->iLineSate = TL_COM_IDLE;
 	if(OK == tl_command_extract(pCom->arrRecived, pCom->iRcvSize, &stPacket))
 	{
 		if(	TL_ADDRESS_BCAST == stPacket.iAddress || 
 			(NULL != pGlobal->arrDevices[stPacket.iAddress] && 
 			TL_MODULE_MASTER == pGlobal->arrDevices[stPacket.iAddress]->iType) )
 		{
-			pCom->iLineSate = TL_COM_IDLE;
 			if(TL_IS_DEBUG(RX))
 				tl_log_info("Recived packet %d: [%s]", stPacket.iCommand, pCom->arrRecived );
 			if(TL_CMD_WD_RESPONCE_F == stPacket.iCommand)

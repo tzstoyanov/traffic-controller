@@ -5,6 +5,7 @@
 #define TL_MODULE_GATE		1
 #define TL_MODULE_LAMP		2
 #define TL_MODULE_TIMER		3
+#define TL_MODULE_ALL		4
 
 #define TL_CMD_CONFIG			1
 #define TL_CMD_STATE			2
@@ -14,6 +15,8 @@
 
 #define TL_CFGID_QINTERVAL		1
 #define TL_CFGID_SLAVES			2
+
+#define TL_ALL_STATE_FAILSAFE	1
 
 #define TL_LAMP_STATE_OFF		0
 #define TL_LAMP_STATE_ON		1
@@ -36,7 +39,7 @@
 #define TL_MODULE_ERR_MISMATCH	6
 
 #define TL_PKT_START	':'
-#define TL_PKT_END		'\n'
+#define TL_PKT_END		';'
 
 #define TL_ADDRESS_BCAST	0xFF
 

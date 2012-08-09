@@ -238,6 +238,8 @@ int tl_parse_cfg_file(char *szFileName, tl_global_t *pGlobal)
 				continue;
 			}
 			pControler->iGateId = iGateId;
+			if(NULL != pGlobal->arrDevices[iGateId])
+				pGlobal->arrDevices[iGateId]->iCritical += pControler->iCritical;
 			if(TL_IS_DEBUG(CONFIG))
 				tl_log_info("The module is attached to gate %d", iGateId);	
 		}else
@@ -257,7 +259,7 @@ static uint32_t tl_get_file_lines(char *szFileName)
 	if( NULL == pFile ) 
 	    return 0;
 	while( fgets((char*)szLine, 250, pFile))
-		if('#' != szLine[0])
+		if('#' != szLine[0] && isalnum(szLine[0]) )
 			iCount++;
 	fclose(pFile);
 	return iCount;	
@@ -286,12 +288,13 @@ int tl_parse_prog_lamp(tl_controler_lamp_t *pLamp, char **pszString, tl_instruct
 
 	pInstr->iType = TL_INSTR_CMD;
 	pInstr->u.stCommand.iDeviceId = pLamp->stHead.iId;
+	pInstr->u.stCommand.iType = TL_MODULE_LAMP;
 	if( OK !=  tl_lamp_command_set(pInstr))
 		return ERROR;
 
 	if(TL_IS_DEBUG(CONFIG))
-		tl_log_info("Got Lamp %d state 0x%X (%s) instruction", 
-			pLamp->stHead.iId, pInstr->u.stCommand.state.stLamp.iState, iSegments);	
+		tl_log_info("Got instruction for %s, state 0x%X", 
+			pLamp->stHead.szName, pInstr->u.stCommand.state.stLamp.iState);	
 
 	return OK;
 }
@@ -346,6 +349,7 @@ int tl_parse_prog_timer(tl_controler_timer_t *pTimer, char **pszString, tl_instr
 		return ERROR;
 	pInstr->iType = TL_INSTR_CMD;
 	pInstr->u.stCommand.iDeviceId = pTimer->stHead.iId;
+	pInstr->u.stCommand.iType = TL_MODULE_TIMER;
 	if( OK !=  tl_timer_command_set(pInstr))
 		return ERROR;
 
@@ -400,7 +404,7 @@ int tl_parse_prog_file(char *szFileName, tl_program_t **ppProgram)
 	
 	while( fgets((char*)szLine, 250, pFile))
 	{
-		if('#' == szLine[0])
+		if('#' == szLine[0] || !isalnum(szLine[0]) )
 			continue;
 		if(iCount >= iInstrCount)
 		{
@@ -450,8 +454,8 @@ int tl_parse_prog_file(char *szFileName, tl_program_t **ppProgram)
 							iRet = tl_parse_prog_lamp((tl_controler_lamp_t*)pControler, &szToken, &((*ppProgram)->arrInstructions[iCount]));
 						break;
 					default:
-						iRet = ERROR;
-					
+							iRet = ERROR;
+						break;
 				}
 			}
 			else
@@ -459,7 +463,7 @@ int tl_parse_prog_file(char *szFileName, tl_program_t **ppProgram)
 				tl_log_error("Cannot find controler [%s] in local database", szString);
 				iRet = ERROR;
 			}
-			if(OK != iRet);
+			if(OK != iRet)
 			{
 				iFail++;				
 				break;	
@@ -469,11 +473,14 @@ int tl_parse_prog_file(char *szFileName, tl_program_t **ppProgram)
 		iCount++;
 	}
 	(*ppProgram)->iCount = iCount;
+	(*ppProgram)->iState = TL_PROGRAM_PAUSE;
+	(*ppProgram)->iCurrentStep = 0;
+	(*ppProgram)->iLoopCount = 0;
 	fclose(pFile);
 	if(0 == iFail)
 	{
 		if(TL_IS_DEBUG(CONFIG))	
-			tl_log_info("Program in file [%s] loaded, going to execute it", szFileName);				
+			tl_log_info("Program in file [%s] loaded, ready for execution", szFileName);				
 		return OK;
 	}
 	tl_log_error("Failed to parse program file [%s], prgram not loaded", szFileName);	
