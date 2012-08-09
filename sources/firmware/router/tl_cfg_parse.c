@@ -136,7 +136,9 @@ int tl_parse_cfg_file(char *szFileName, tl_global_t *pGlobal)
 		if(0 == strncmp(szString, TL_PARAM_SYS_NAME, strlen(TL_PARAM_SYS_NAME)))
 		{
 			iLen = strlen(szToken);
-			while(iLen && !isalnum(szToken[iLen]) && !isblank(szToken[iLen]))
+			while(iLen 	&& !isalnum(szToken[iLen]) 
+						&& (' ' != szToken[iLen])
+						&& ('\t' != szToken[iLen]) )			
 			{
 				szToken[iLen] = 0;
 				iLen--;	
