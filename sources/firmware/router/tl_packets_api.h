@@ -14,7 +14,8 @@
 #define TL_CMD_WD_RESPONCE_F	5
 
 #define TL_CFGID_QINTERVAL		1
-#define TL_CFGID_SLAVES			2
+#define TL_CFGID_DEADCOUNT		2
+#define TL_CFGID_SLAVES			3
 
 #define TL_ALL_STATE_FAILSAFE	1
 
@@ -42,6 +43,14 @@
 #define TL_PKT_END		';'
 
 #define TL_ADDRESS_BCAST	0xFF
+
+typedef struct
+{
+	uint8_t	iCommand;
+	uint8_t	iAddress;
+	uint8_t	iLen;
+	uint8_t	arrData[8];	
+}t_can_packet_t;
 
 #endif /* __TLIGHT_PACKETS_API_H__ */
 

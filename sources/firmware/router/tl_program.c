@@ -4,19 +4,19 @@
 #include "tl_api.h"
 #include "tl_serial.h"
 #include "tl_program.h"
-#include "tl_packets.h"
+#include "tl_packets_api.h"
 #include "tl_controlers.h"
-#include "tl_log.h"
-#include "main_tlight.h"
-#include "tl_config.h"
+#include "lib_tl_log.h"
+#include "lib_tl_config.h"
+#include "tl_main.h"
 
-static int tl_program_send_cmd(tl_global_t *pGlobal, char *szCommand, uint8_t iAddress)
+static int tl_program_send_cmd(tl_com_t *pPort, char *szCommand, uint8_t iAddress)
 {
-	if(TL_COM_IDLE != pGlobal->stPort.iLineSate)
+	if(TL_COM_IDLE != pPort->iLineSate)
 		return ERROR;
-	strncpy(pGlobal->stPort.arrSend, szCommand, TL_MAX_PACKET_SERIAL_SIZE);
-	pGlobal->stPort.arrSend[TL_MAX_PACKET_SERIAL_SIZE-1] = 0;
-	return tl_com_send_session(&(pGlobal->stPort), iAddress, TL_COM_LOCAL_VERIFY);
+	strncpy(pPort->arrSend, szCommand, TL_MAX_PACKET_SERIAL_SIZE);
+	pPort->arrSend[TL_MAX_PACKET_SERIAL_SIZE-1] = 0;
+	return tl_com_send_session(pPort, iAddress, TL_COM_LOCAL_VERIFY);
 }
 
 static int32_t tl_program_delay(thread_t *pThread)
@@ -37,16 +37,17 @@ int tl_program_step(tl_program_t *pProgram)
 {
 	uint8_t iAddress;
 	struct timeval stDelay;
-	tl_global_t *pGlobal = tl_get_global();
+	tl_global_config_t *pGlobalDb = tl_get_global_dbase();
+	tl_global_t *pGlobal = tl_get_global();	
 	
 	if(NULL != pProgram->pDelayThread || TL_PROGRAM_RUNNING != pProgram->iState)
 		return ERROR;
 	while(TL_INSTR_CMD == pProgram->arrInstructions[pProgram->iCurrentStep].iType)
 	{
 		iAddress = pProgram->arrInstructions[pProgram->iCurrentStep].u.stCommand.iDeviceId;
-		if(NULL != pGlobal->arrDevices[iAddress] && TL_MODULE_ERR_OK == pGlobal->arrDevices[iAddress]->iStatus)
+		if(NULL != pGlobalDb->arrDevices[iAddress] && TL_MODULE_ERR_OK == pGlobalDb->arrDevices[iAddress]->iStatus)
 		{
-			tl_program_send_cmd(pGlobal, pProgram->arrInstructions[pProgram->iCurrentStep].u.stCommand.arrCommand, iAddress);
+			tl_program_send_cmd(&(pGlobalDb->stPort), pProgram->arrInstructions[pProgram->iCurrentStep].u.stCommand.arrCommand, iAddress);
 			tl_update_controler_state(&(pProgram->arrInstructions[pProgram->iCurrentStep]));			
 		}
 		pProgram->iCurrentStep++;
@@ -104,8 +105,8 @@ int tl_program_reset(tl_program_t *pProgram)
 int tl_program_change(tl_api_program_t *pApiProgram)
 {
 	tl_program_t *pNewProgram=NULL;
-
 	tl_global_t *pGlobal = tl_get_global();
+	
 	if(NULL == pApiProgram)
 		return ERROR;
 	if(OK != tl_parse_prog_file(pApiProgram->szProgName, &pNewProgram) || NULL == pNewProgram)

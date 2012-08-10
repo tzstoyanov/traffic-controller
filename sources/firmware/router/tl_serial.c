@@ -4,152 +4,53 @@
 #include "tl_api.h"
 #include "tl_serial.h"
 #include "tl_program.h"
-#include "tl_packets.h"
+#include "tl_packets_api.h"
+#include "lib_tl_packets.h"
 #include "tl_controlers.h"
-#include "tl_log.h"
-#include "main_tlight.h"
-#include "tl_config.h"
-
-int tl_com_local_pkt_verify(tl_com_t *pCom)
-{
-	if(pCom->iRcvSize != pCom->iSendSize || 0 != memcmp(pCom->arrSend, pCom->arrRecived, pCom->iRcvSize))
-	{
-		tl_log_error("Local Echo check failed !");
-		pCom->iLineSate = TL_COM_IDLE;
-		return ERROR;
-	}
-	if(TL_COM_LOCAL_VERIFY_WAIT == pCom->iLineSate)
-		pCom->iLineSate = TL_COM_PKT_WAIT;
-	else
-		pCom->iLineSate = TL_COM_IDLE;
-	return OK;
-}
-
-int tl_com_read_packet(tl_com_t *pCom)
-{
-	uint8_t iChar;
-	int iRet;
-
-	iRet = read(pCom->iNetFd, &iChar, 1);
-	while(1 == iRet)
-	{
-		if( pCom->iRcvSize < TL_MAX_PACKET_SERIAL_SIZE && 
-			TL_PKT_END != pCom->arrRecived[pCom->iRcvSize] )
-		{
-			pCom->arrRecived[pCom->iRcvSize++] = iChar;
-		}
-		if(TL_PKT_END == pCom->arrRecived[pCom->iRcvSize])
-			break;
-		iRet = read(pCom->iNetFd, &iChar, 1);	
-	}	
-	
-	if(TL_PKT_END == pCom->arrRecived[pCom->iRcvSize])
-	{	
-		pCom->arrRecived[pCom->iRcvSize+1] = 0;
-		if(TL_IS_DEBUG(RX))
-		{
-			tl_log_info("Recived packet from %s, line state is %d", 
-				pCom->szPortName, pCom->iLineSate );
-			if(TL_IS_DEBUG(PKT_DUMP))
-				tl_log_info("[%s]", pCom->arrRecived);
-		}
-	
-		switch(pCom->iLineSate)
-		{
-			case TL_COM_LOCAL_VERIFY:
-			case TL_COM_LOCAL_VERIFY_WAIT:
-				tl_com_local_pkt_verify(pCom);
-				break;
-			case TL_COM_PKT_WAIT:
-				tl_com_pkt_process(pCom);
-				break;
-			case TL_COM_IDLE:
-			default:
-				break;
-		}
-	}
-	else
-	{
-		tl_log_error("Received broken packet");
-		pCom->iLineSate = TL_COM_IDLE;
-	}
-	pCom->iRcvSize = 0;
-	pCom->arrRecived[0]=0;
-	return OK;
-}
+#include "lib_tl_log.h"
+#include "lib_tl_config.h"
+#include "lib_tl_com.h"
+#include "tl_main.h"
 
 int32_t tl_com_read(thread_t *pThread)
 {
-	tl_global_t *pGlobal = tl_get_global();	
 	tl_com_t *pCom = (tl_com_t*) pThread->pArg;
 	
 	pCom->pReadThread  = NULL;
 	
 	if(TL_IS_DEBUG(RX))
 		tl_log_info("Recived unexpected data from %s, line state is %d", 
-				pCom->szPortName, pCom->iLineSate );	
-	
+				pCom->szPortName, pCom->iLineSate );
+				
 	tl_com_read_packet(pCom);
-	pCom->pReadThread  = thread_read_add(&(pGlobal->stMaintThread), tl_com_read, pCom, pCom->iNetFd);
-	return 1;
-}
-
-int tl_com_send(tl_com_t *pCom)
-{
-	uint32_t iRet, iSize;
 	
-	iSize = strlen(pCom->arrSend);
-	iRet = write(pCom->iNetFd, pCom->arrSend, iSize);
-	if(iRet != iSize)
-		return ERROR;
-	return OK;	
+	pCom->pReadThread  = thread_read_add(pThread->pMain, tl_com_read, pCom, pCom->iNetFd);
+	return 1;
 }
 
 int tl_com_send_session(tl_com_t *pCom, uint8_t iAddress, uint8_t iNextState)
 {
-	tl_global_t *pGlobal = tl_get_global();
-	fd_set stFdSet;
-	int iRet;	
-	struct timeval stTime;
-	
+
 	if(OK != tl_com_send(pCom))
 		return ERROR;
+
 	pCom->iLineSate = iNextState;
-	stTime.tv_sec = pGlobal->iTimeout / 1000;
-	stTime.tv_usec = 1000*(pGlobal->iTimeout % 1000);
-	FD_ZERO(&stFdSet);		
-	FD_SET (pCom->iNetFd, &stFdSet);
-	iRet = select (FD_SETSIZE, &stFdSet, NULL, NULL, &stTime);
-	if(0 == iRet)
+	while(TL_COM_IDLE != pCom->iLineSate)
 	{
-		tl_controler_timeout(iAddress);
-		pCom->iLineSate = TL_COM_IDLE;
-		return ERROR;
-	}
-	if(OK !=  tl_com_read_packet(pCom));
-		return ERROR;
-	while(TL_COM_PKT_WAIT == pCom->iLineSate)
-	{
-		stTime.tv_sec = pGlobal->iTimeout / 1000;
-		stTime.tv_usec = 1000*(pGlobal->iTimeout % 1000);
-		FD_ZERO(&stFdSet);		
-		FD_SET (pGlobal->stPort.iNetFd, &stFdSet);
-		iRet = select (FD_SETSIZE, &stFdSet, NULL, NULL, &stTime);
-		if(0 == iRet)
+		if(OK != tl_com_read_packet(pCom))
 		{
 			tl_controler_timeout(iAddress);
-			return ERROR;
-		}
-		if(OK !=  tl_com_read_packet(pCom));
+			pCom->iLineSate = TL_COM_IDLE;
 			return ERROR;	
+		}	
 	}
+
 	return OK;
 }
 
-int tl_com_port_open(tl_com_t *pCom)
+int tl_com_port_serial_open(tl_com_t *pCom)
 {
 	struct termios stOptions;
-	tl_global_t *pGlobal = tl_get_global();
 	
 	pCom->iNetFd = open(pCom->szPortName, O_RDWR | O_NOCTTY | O_NDELAY);
 	if(-1 == pCom->iNetFd)
@@ -177,7 +78,7 @@ int tl_com_port_open(tl_com_t *pCom)
 	stOptions.c_cflag &= ~PARENB;
 	
 	stOptions.c_cflag |= (CLOCAL | CREAD);
-	stOptions.c_cflag |= pGlobal->stPort.iPortFlags;
+	stOptions.c_cflag |= pCom->iPortFlags;
 
 	stOptions.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);
 
@@ -188,12 +89,18 @@ int tl_com_port_open(tl_com_t *pCom)
 		return ERROR;
 	}
 
-	
-	pCom->pReadThread  = thread_read_add(&(pGlobal->stMaintThread), tl_com_read, pCom, pCom->iNetFd);
-	
+	pCom->iLineSate = TL_COM_IDLE;
+
 	if(TL_IS_DEBUG(INIT))
 		tl_log_info("Com port %s is ready", pCom->szPortName);
 	
 	return OK;
+}
+
+int tl_com_port_open(tl_com_t *pCom)
+{
+	if(TL_COM_SERIAL == pCom->iType)
+		return tl_com_port_serial_open(pCom);
+	return 	tl_com_sym_open(pCom);
 }
 

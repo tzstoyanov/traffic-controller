@@ -2,14 +2,15 @@
 #include "linux_thread.h"
 #include "linux_sem.h"
 #include "tl_types.h"
+#include "lib_tl_log.h"
 #include "tl_api.h"
 #include "tl_serial.h"
 #include "tl_program.h"
-#include "tl_packets.h"
+#include "tl_packets_api.h"
+#include "lib_tl_packets.h"
 #include "tl_controlers.h"
-#include "tl_log.h"
-#include "main_tlight.h"
-#include "tl_config.h"
+#include "lib_tl_config.h"
+#include "tl_main.h"
 
 static tl_global_t stGlobal;
 uint32_t iTlightDebugSwitch = 0;
@@ -54,14 +55,15 @@ void tl_check_system_status()
 {
 	uint32_t iCritical=0, iWarning = 0, i;
 	tl_global_t *pGlobal = tl_get_global();
+	tl_global_config_t *pDbGlobal = tl_get_global_dbase();
 	
 	for(i=1; i<TL_MAX_CONTROLERS; i++)
 	{
-		if(NULL == pGlobal->arrDevices[i])
+		if(NULL == pDbGlobal->arrDevices[i])
 			break;
-		if( TL_MODULE_ERR_OK != pGlobal->arrDevices[i]->iStatus)
+		if( TL_MODULE_ERR_OK != pDbGlobal->arrDevices[i]->iStatus)
 		{
-			if(pGlobal->arrDevices[i]->iCritical)
+			if(pDbGlobal->arrDevices[i]->iCritical)
 				iCritical++;
 			else
 				iWarning++;
@@ -82,31 +84,34 @@ void tl_check_system_status()
 	pGlobal->iWarning = iWarning;
 }
 
+tl_global_t *tl_get_global()
+{
+	return &stGlobal;
+}
+
 int32_t tl_wd_thread(thread_t *pThread)
 {
 	int i;
 	struct timeval stDelay;
-	tl_global_t *pGlobal = (tl_global_t*)pThread->pArg;
+	tl_global_config_t *pDbGlobal = (tl_global_config_t*)pThread->pArg;
+	tl_global_t *pGlobal = tl_get_global();
 	pGlobal->pWDThread = NULL;
 
 	for(i=1; i<TL_MAX_CONTROLERS; i++)
 	{
-		if(NULL == pGlobal->arrDevices[i])
+		if(NULL == pDbGlobal->arrDevices[i])
 			break;
-		if(TL_MODULE_GATE != pGlobal->arrDevices[i]->iType)
+		if(TL_MODULE_GATE != pDbGlobal->arrDevices[i]->iType)
 			continue;
 		tl_ask_controler_state(i);
+		if(pDbGlobal->arrDevices[i]->iSendConfig)
+			tl_send_controlers_config(i);
 	}
 
-	stDelay.tv_sec = pGlobal->iWdInterval / 1000;
-	stDelay.tv_usec = 1000*(pGlobal->iWdInterval % 1000);
-	pGlobal->pWDThread = thread_timer_add(&(pGlobal->stMaintThread), tl_wd_thread, pGlobal, &stDelay); 
+	stDelay.tv_sec = pDbGlobal->iWdInterval / 1000;
+	stDelay.tv_usec = 1000*(pDbGlobal->iWdInterval % 1000);
+	pGlobal->pWDThread = thread_timer_add(&(pGlobal->stMaintThread), tl_wd_thread, pDbGlobal, &stDelay); 
 	return 1;
-}
-
-tl_global_t *tl_get_global()
-{
-	return &stGlobal;
 }
 
 void tl_daemonzie(int iSem)
@@ -131,6 +136,7 @@ int main(int argc, char **argv)
 {
 	int iOpt, iDaemon=0, iSem, iCfg = 0;
 	struct timeval stWDDelay;
+	tl_global_config_t *pDbGlobal = tl_get_global_dbase();
 	struct option 	stLongOptions[] =
 					{
 						{"help", 0, 0, 1},
@@ -142,6 +148,7 @@ int main(int argc, char **argv)
 					};
 
 	bzero(&stGlobal, sizeof(tl_global_t));
+	bzero(pDbGlobal, sizeof(tl_global_config_t));
 	
 	tl_log_init(TL_LOG2CONSOLE, TL_LOG_PREFIX);
 	
@@ -151,7 +158,7 @@ int main(int argc, char **argv)
 		{
 			case 3:
 			case 'c':
-				if(OK != tl_parse_cfg_file(optarg, &stGlobal))
+				if(OK != tl_parse_cfg_file(optarg, pDbGlobal, tl_NewControler))
 				{
 					tl_log_error("Error parsing the configuration file %s", optarg);
 					exit(1);
@@ -190,21 +197,24 @@ int main(int argc, char **argv)
 		tl_daemonzie(iSem);
 	}
 	thread_main_init(&(stGlobal.stMaintThread));
-	if(OK != tl_com_port_open(&stGlobal.stPort))
+	if(OK != tl_com_port_open(&(pDbGlobal->stPort)))
 	{
 		sem_give(iSem);
 		exit(1);
 	}
+	pDbGlobal->stPort.pReadThread = 
+				thread_read_add(&(stGlobal.stMaintThread), tl_com_read, &(pDbGlobal->stPort), pDbGlobal->stPort.iNetFd);
 	if(OK != tl_api_init())
 	{
 		sem_give(iSem);
 		exit(1);
 	}
 	tl_check_controlers();
+	tl_send_controlers_config(TL_ADDRESS_BCAST);
 
-	stWDDelay.tv_sec = stGlobal.iWdInterval / 1000;
-	stWDDelay.tv_usec = 1000*(stGlobal.iWdInterval % 1000);
-	stGlobal.pWDThread = thread_timer_add(&(stGlobal.stMaintThread), tl_wd_thread, &stGlobal, &stWDDelay);
+	stWDDelay.tv_sec = pDbGlobal->iWdInterval / 1000;
+	stWDDelay.tv_usec = 1000*(pDbGlobal->iWdInterval % 1000);
+	stGlobal.pWDThread = thread_timer_add(&(stGlobal.stMaintThread), tl_wd_thread, pDbGlobal, &stWDDelay);
 
 	sem_give(iSem);
 

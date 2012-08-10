@@ -1,7 +1,7 @@
 #include "os_linux.h"
 #include "tl_types.h"
 #include "tl_api.h"
-#include "tl_log.h"
+#include "lib_tl_log.h"
 #include "tl_packets_api.h"
 #include "tl_program_api.h"
 #include "mgmt_tl_main.h"
@@ -24,6 +24,7 @@ void get_status()
 				stStatus.iDeviceNumber, stStatus.iDeviceOk, stStatus.iDeviceError);
 		tl_log_info("\tCritical errors %d, warnings %d", stStatus.iCritError ,stStatus.iWarning );		
 		tl_log_info("\tWatchdog interval %d msec", stStatus.iWdInterval);
+		tl_log_info("\tDead Count %d", stStatus.iDeadCount);
 		tl_log_info("\tCommunication port: %s", stStatus.szComPort);
 		tl_log_info("\tCommunication timeout %d msec", stStatus.iCommTimeout);
 		tl_log_info("\tProgram in progress: %s", 

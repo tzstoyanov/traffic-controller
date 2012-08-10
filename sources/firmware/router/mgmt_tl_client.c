@@ -1,7 +1,7 @@
 #include "os_linux.h"
 #include "tl_types.h"
 #include "tl_api.h"
-#include "tl_log.h"
+#include "lib_tl_log.h"
 
 int tl_mgmt_connect()
 {

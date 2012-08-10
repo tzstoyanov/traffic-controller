@@ -3,6 +3,13 @@
 
 #include "tl_program_api.h"
 
+#define TL_CMD_DELAY			"Delay"
+#define TL_CMD_LOOP				"Loop"
+#define TL_CMD_TIMER_CDOWN		"countdown"
+#define TL_CMD_TIMER_DISPLAY	"display"
+#define TL_CMD_TIMER_RED		"red"
+#define TL_CMD_TIMER_GREEN		"green"
+
 typedef struct
 {
 	char *szProgramFile;
@@ -20,6 +27,8 @@ int tl_program_step(tl_program_t *pProgram);
 int tl_program_stop(tl_program_t *pProgram);
 int tl_program_reset(tl_program_t *pProgram);
 int tl_program_change(tl_api_program_t *pNewProgram);
+
+int tl_parse_prog_file(char *szFileName, tl_program_t **ppProgram);
 
 #endif /* __TLIGHT_PROGRAM_H__ */
 

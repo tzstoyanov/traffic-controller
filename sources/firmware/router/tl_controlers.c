@@ -4,15 +4,16 @@
 #include "tl_api.h"
 #include "tl_serial.h"
 #include "tl_program.h"
-#include "tl_packets.h"
+#include "tl_packets_api.h"
+#include "lib_tl_packets.h"
 #include "tl_controlers.h"
-#include "tl_log.h"
-#include "main_tlight.h"
-#include "tl_config.h"
+#include "lib_tl_log.h"
+#include "lib_tl_config.h"
+#include "tl_main.h"
 
 int tl_controler_check_common(uint8_t *arrStatus)
 {
-	tl_global_t *pGlobal = tl_get_global();
+	tl_global_config_t *pGlobal = tl_get_global_dbase();
 	uint8_t iAddress = arrStatus[0];
 	uint8_t iPktType = (arrStatus[1] & 0xE0) >> 5;
 	uint8_t iState = (arrStatus[1] & 10) >> 4;
@@ -54,8 +55,10 @@ int tl_controler_check_common(uint8_t *arrStatus)
 	switch(iNewStatus)
 	{
 		case TL_MODULE_ERR_OK:
+			pGlobal->arrDevices[iAddress]->iSendConfig=0;
 			return OK;
 		case TL_MODULE_ERR_INIT:
+			pGlobal->arrDevices[iAddress]->iSendConfig++;
 			return OK;
 		case TL_MODULE_ERR_HW:
 			break;
@@ -78,16 +81,27 @@ int tl_controler_check_common(uint8_t *arrStatus)
 
 int tl_controler_check_module(uint8_t iAddress, t_can_packet_t *pPacket)
 {
+
+	if(	TL_CMD_WD_RESPONCE != pPacket->iCommand && 
+		TL_CMD_WD_RESPONCE_F != pPacket->iCommand)
+		return OK;
 	if(pPacket->iLen < 2)
 		return ERROR;
+
 	return tl_controler_check_common(pPacket->arrData);
 }
 
 int tl_controler_check_gate(uint8_t iAddress, t_can_packet_t *pPacket)
 {
 	uint8_t i, iSize = pPacket->iLen;
+	
+	if(	TL_CMD_WD_RESPONCE != pPacket->iCommand && 
+		TL_CMD_WD_RESPONCE_F != pPacket->iCommand)
+		return OK;
+
 	if(pPacket->iLen < 2)
 		return ERROR;
+		
 	if(OK != tl_controler_check_common(pPacket->arrData))
 		return ERROR;
 	i = 2;
@@ -114,19 +128,19 @@ tl_controler_t *tl_NewControler(uint8_t iType)
 			break;
 		case TL_MODULE_GATE:
 			pControler = calloc(1, sizeof(tl_controler_t));
-			pControler->fVerifyState = tl_controler_check_gate;
+			pControler->fPktProcess = tl_controler_check_gate;
 			pControler->iStatus = TL_MODULE_ERR_INIT;
 			pControler->iCritical = 0;
 			break;
 		case TL_MODULE_LAMP:
 			pControler = calloc(1, sizeof(tl_controler_lamp_t));				
-			pControler->fVerifyState = tl_controler_check_module;
+			pControler->fPktProcess = tl_controler_check_module;
 			pControler->iStatus = TL_MODULE_ERR_INIT;
 			pControler->iCritical = 1;
 			break;
 		case TL_MODULE_TIMER:
 			pControler = calloc(1, sizeof(tl_controler_timer_t));		
-			pControler->fVerifyState = tl_controler_check_module;
+			pControler->fPktProcess = tl_controler_check_module;
 			pControler->iStatus = TL_MODULE_ERR_INIT;
 			pControler->iCritical = 0;
 			break;
@@ -142,7 +156,7 @@ tl_controler_t *tl_NewControler(uint8_t iType)
 tl_controler_t *tl_get_controler_byname(char *szName)
 {
 	int i;
-	tl_global_t *pGlobal = tl_get_global();
+	tl_global_config_t *pGlobal = tl_get_global_dbase();
 	
 	for(i=1; i<TL_MAX_CONTROLERS; i++)
 	{
@@ -158,14 +172,16 @@ int tl_send_gate_slaves(uint8_t iGate)
 {
 	int i, j=0;
 	uint8_t  arrSlaves[7];	
-	tl_global_t *pGlobal = tl_get_global();
+	tl_global_config_t *pGlobal = tl_get_global_dbase();
 	
 	if(NULL == pGlobal->arrDevices[iGate] || TL_MODULE_GATE != pGlobal->arrDevices[iGate]->iType)	
 		return ERROR;
 	if(TL_COM_IDLE != pGlobal->stPort.iLineSate)
-		return ERROR;		
+		return ERROR;
 	for(i = iGate+1; i<TL_MAX_CONTROLERS; i++)
 	{
+		if(NULL == pGlobal->arrDevices[i])
+			break;
 		if(iGate == pGlobal->arrDevices[i]->iGateId && TL_MODULE_GATE != pGlobal->arrDevices[i]->iType)
 			arrSlaves[j++] = i;
 		else
@@ -200,14 +216,14 @@ int tl_send_gate_slaves(uint8_t iGate)
 	return OK;
 }
 
-int tl_send_wdinterval()
+int tl_send_wdinterval(uint8_t iAddress)
 {
 	uint8_t iData;
-	tl_global_t *pGlobal = tl_get_global();
+	tl_global_config_t *pGlobal = tl_get_global_dbase();
 	if(TL_COM_IDLE != pGlobal->stPort.iLineSate)
 		return ERROR;
 	iData = pGlobal->iWdInterval/10;
-	tl_cfg_command_set(pGlobal->stPort.arrSend, TL_ADDRESS_BCAST, TL_CFGID_QINTERVAL, &iData, 1);
+	tl_cfg_command_set(pGlobal->stPort.arrSend, iAddress, TL_CFGID_QINTERVAL, &iData, 1);
 	if(TL_IS_DEBUG(TX_CFG))
 	{
 		tl_log_info("Send config WD interval %d to all", iData);
@@ -215,7 +231,51 @@ int tl_send_wdinterval()
 			tl_log_info("Send packet [%s]", pGlobal->stPort.arrSend);
 	}	
 	
-	return tl_com_send_session(&(pGlobal->stPort), TL_ADDRESS_BCAST, TL_COM_LOCAL_VERIFY);
+	return tl_com_send_session(&(pGlobal->stPort), iAddress, TL_COM_LOCAL_VERIFY);
+}
+
+int tl_send_deadcount(uint8_t iAddress)
+{
+	uint8_t iData;
+	tl_global_config_t *pGlobal = tl_get_global_dbase();
+	if(TL_COM_IDLE != pGlobal->stPort.iLineSate)
+		return ERROR;
+	iData = pGlobal->iDeadCount;
+	tl_cfg_command_set(pGlobal->stPort.arrSend, iAddress, TL_CFGID_DEADCOUNT, &iData, 1);
+	if(TL_IS_DEBUG(TX_CFG))
+	{
+		tl_log_info("Send config Dead Count %d to all", iData);
+		if(TL_IS_DEBUG(PKT_DUMP))
+			tl_log_info("Send packet [%s]", pGlobal->stPort.arrSend);
+	}	
+	
+	return tl_com_send_session(&(pGlobal->stPort), iAddress, TL_COM_LOCAL_VERIFY);
+}
+
+int tl_send_controlers_config(uint8_t iAddress)
+{
+ uint8_t i;
+ tl_global_config_t *pGlobal = tl_get_global_dbase();
+ 
+	tl_send_wdinterval(iAddress);
+	tl_send_deadcount(iAddress);
+	if(TL_ADDRESS_BCAST == iAddress)
+	{
+		for(i=1; i<TL_MAX_CONTROLERS; i++)
+		{
+			if(NULL == pGlobal->arrDevices[i])
+				break;	
+			if(TL_MODULE_GATE == pGlobal->arrDevices[i]->iType)
+				tl_send_gate_slaves(i);
+		}
+	}
+	else
+	{
+		if(	NULL != pGlobal->arrDevices[iAddress] &&
+			TL_MODULE_GATE == pGlobal->arrDevices[iAddress]->iType)
+			tl_send_gate_slaves(iAddress);
+	}
+	return OK;
 }
 
 int tl_update_controler_state(tl_instruction_t *pCommand)
@@ -223,7 +283,7 @@ int tl_update_controler_state(tl_instruction_t *pCommand)
 	uint8_t iAddress;
 	void *pDbState, *pCmdState;
 	uint8_t iSize;
-	tl_global_t *pGlobal = tl_get_global();
+	tl_global_config_t *pGlobal = tl_get_global_dbase();
 
 	iAddress = 	pCommand->u.stCommand.iDeviceId;	
 	if(TL_INSTR_CMD !=pCommand->iType || NULL == pGlobal->arrDevices[iAddress])
@@ -262,7 +322,7 @@ int tl_update_controler_state(tl_instruction_t *pCommand)
 
 int tl_ask_controler_state(uint8_t iAddress)
 {
-	tl_global_t *pGlobal = tl_get_global();
+	tl_global_config_t *pGlobal = tl_get_global_dbase();
 	if(TL_COM_IDLE != pGlobal->stPort.iLineSate)
 		return ERROR;
 	if(OK != tl_wdrequest_command_set(pGlobal->stPort.arrSend, iAddress, pGlobal->arrDevices[1]->iId))
@@ -280,7 +340,7 @@ int tl_ask_controler_state(uint8_t iAddress)
 
 int tl_send_failsafe()
 {
-	tl_global_t *pGlobal = tl_get_global();
+	tl_global_config_t *pGlobal = tl_get_global_dbase();
 	if(TL_COM_IDLE != pGlobal->stPort.iLineSate)
 		return ERROR;
 	if(OK != tl_failsafe_command_set(pGlobal->stPort.arrSend))
@@ -295,7 +355,7 @@ int tl_send_failsafe()
 int tl_check_controlers(uint8_t *pAll, uint8_t *pOk, uint8_t *pFail)
 {
 	int i, iOk=0, iFail=0;
-	tl_global_t *pGlobal = tl_get_global();
+	tl_global_config_t *pGlobal = tl_get_global_dbase();
 		
 	for(i=1; i<TL_MAX_CONTROLERS; i++)
 	{
@@ -327,7 +387,7 @@ int tl_check_controlers(uint8_t *pAll, uint8_t *pOk, uint8_t *pFail)
 int tl_controlers_get_state(uint8_t *pAll, uint8_t *pOk, uint8_t *pFail)
 {
 	int i, iOk=0, iFail=0;
-	tl_global_t *pGlobal = tl_get_global();
+	tl_global_config_t *pGlobal = tl_get_global_dbase();
 		
 	for(i=1; i<TL_MAX_CONTROLERS; i++)
 	{
@@ -348,7 +408,7 @@ int tl_controlers_get_state(uint8_t *pAll, uint8_t *pOk, uint8_t *pFail)
 
 int tl_controler_timeout(uint8_t iAddress)
 {
-	tl_global_t *pGlobal = tl_get_global();
+	tl_global_config_t *pGlobal = tl_get_global_dbase();
 	
 	if(iAddress < TL_MAX_CONTROLERS && NULL != pGlobal->arrDevices[iAddress])
 	{

@@ -2,7 +2,7 @@
 #define __TLIGHT_API_H__
 
 #include "tl_program_api.h"
-#include "tl_log.h"
+#include "lib_tl_log.h"
 
 #define TL_API_MAX_CONNECTIONS	5
 #define TL_API_SOCKET_NAME	"/tmp/tlight_api_sock"
@@ -30,6 +30,7 @@ struct tl_api_status_type
 	char szCrossName[128];
 	char szComPort[64];
 	int32_t iWdInterval;
+	int32_t iDeadCount;
 	int32_t	iCommTimeout;
 	uint32_t iDebugFlags;
 	tl_log_dest_t iLogDest;

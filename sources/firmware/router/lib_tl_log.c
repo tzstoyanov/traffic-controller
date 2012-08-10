@@ -2,7 +2,7 @@
 #include "tl_types.h"
 #include "tl_program_api.h"
 #include "tl_packets_api.h"
-#include "tl_log.h"
+#include "lib_tl_log.h"
 
 tl_log_dest_t iTlLogDestination = TL_LOG2CONSOLE;
 

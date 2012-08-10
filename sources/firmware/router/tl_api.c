@@ -4,11 +4,11 @@
 #include "tl_api.h"
 #include "tl_serial.h"
 #include "tl_program.h"
-#include "tl_packets.h"
+#include "tl_packets_api.h"
 #include "tl_controlers.h"
-#include "tl_log.h"
-#include "main_tlight.h"
-#include "tl_config.h"
+#include "lib_tl_log.h"
+#include "lib_tl_config.h"
+#include "tl_main.h"
 
 typedef int (*tl_api_callback_t)(int iClient, int iFd, uint32_t iCommand, uint32_t iLen, uint8_t *pData);
 
@@ -56,13 +56,15 @@ int tl_api_get_status(int iClient, int iFd, uint32_t iCommand, uint32_t iLen, ui
 {
 	uint32_t iDebugSwitch, iLogDest;
 	tl_api_status_t stStatus;
+	tl_global_config_t *pGlobalDb = tl_get_global_dbase();
 	tl_global_t *pGlobal = tl_get_global();
 	
 	tl_debug_get(&iDebugSwitch, &iLogDest);
-	strncpy(stStatus.szCrossName, pGlobal->szCrossName, 128); stStatus.szCrossName[127]=0;
-	strncpy(stStatus.szComPort, pGlobal->stPort.szPortName, 64); stStatus.szComPort[63]=0;
-	stStatus.iWdInterval = pGlobal->iWdInterval;
-	stStatus.iCommTimeout = pGlobal->iTimeout;
+	strncpy(stStatus.szCrossName, pGlobalDb->szCrossName, 128); stStatus.szCrossName[127]=0;
+	strncpy(stStatus.szComPort, pGlobalDb->stPort.szPortName, 64); stStatus.szComPort[63]=0;
+	stStatus.iWdInterval = pGlobalDb->iWdInterval;
+	stStatus.iDeadCount = pGlobalDb->iDeadCount;
+	stStatus.iCommTimeout = pGlobalDb->stPort.iTimeout;
 	stStatus.iDebugFlags = iDebugSwitch;
 	stStatus.iLogDest = iLogDest;
 	stStatus.iCritError = pGlobal->iCritError;
@@ -83,10 +85,10 @@ int tl_api_get_status_mod(int iClient, int iFd, uint32_t iCommand, uint32_t iLen
 {
 	uint8_t i;
 	tl_api_status_mod_t stMod;
-	tl_global_t *pGlobal = tl_get_global();
+	tl_global_config_t *pGlobalDb = tl_get_global_dbase();
 	
 	for(i=1; i<TL_MAX_CONTROLERS; i++)
-		if(NULL == pGlobal->arrDevices[i])
+		if(NULL == pGlobalDb->arrDevices[i])
 			break;
 	i--;		
 	tl_api_reply(iFd, (uint8_t*)&i, sizeof(i));
@@ -94,20 +96,20 @@ int tl_api_get_status_mod(int iClient, int iFd, uint32_t iCommand, uint32_t iLen
 	{
 		for(i=1; i<TL_MAX_CONTROLERS; i++)
 		{
-			if(NULL == pGlobal->arrDevices[i])
+			if(NULL == pGlobalDb->arrDevices[i])
 				break;
 			stMod.iAddress = i;
-			stMod.iType	= pGlobal->arrDevices[i]->iType;
-			strncpy(stMod.szName, pGlobal->arrDevices[i]->szName, 64); stMod.szName[63]=0;
-			stMod.iGateId = pGlobal->arrDevices[i]->iGateId;
-			stMod.iStatus = pGlobal->arrDevices[i]->iStatus;
+			stMod.iType	= pGlobalDb->arrDevices[i]->iType;
+			strncpy(stMod.szName, pGlobalDb->arrDevices[i]->szName, 64); stMod.szName[63]=0;
+			stMod.iGateId = pGlobalDb->arrDevices[i]->iGateId;
+			stMod.iStatus = pGlobalDb->arrDevices[i]->iStatus;
 			if(TL_MODULE_LAMP == stMod.iType)
 				memcpy(&stMod.u.stLamp, 
-						&(((tl_controler_lamp_t*)(pGlobal->arrDevices[i]))->stCurrentState),	
+						&(((tl_controler_lamp_t*)(pGlobalDb->arrDevices[i]))->stCurrentState),	
 						sizeof(tl_lamp_state_t ));
 			else if	(TL_MODULE_TIMER == stMod.iType)
 				memcpy(&stMod.u.stTimer, 
-						&(((tl_controler_timer_t*)(pGlobal->arrDevices[i]))->stCurrentState),	
+						&(((tl_controler_timer_t*)(pGlobalDb->arrDevices[i]))->stCurrentState),	
 						sizeof(tl_timer_state_t ));
 	
 			tl_api_reply(iFd, (uint8_t*)&stMod, sizeof(stMod));		

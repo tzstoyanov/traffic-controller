@@ -1,0 +1,34 @@
+#ifndef __TLIGHT_SERIAL_API_H__
+#define __TLIGHT_SERIAL_API_H__
+
+typedef enum
+{
+	TL_COM_IDLE,
+	TL_COM_LOCAL_VERIFY,
+	TL_COM_LOCAL_VERIFY_WAIT,	
+	TL_COM_PKT_WAIT
+}tl_com_state_t;
+
+typedef enum
+{
+	TL_COM_SERIAL,
+	TL_COM_LOCALSOCK
+}tl_com_type_t;
+
+typedef struct
+{
+	char *szPortName;
+	uint32_t iPortSpeed;	
+	uint32_t iPortFlags;	
+	tl_com_type_t iType;
+	int32_t	iTimeout;
+	int	iNetFd;
+	tl_com_state_t iLineSate;
+	char arrSend[TL_MAX_PACKET_SERIAL_SIZE];
+	uint8_t	iSendSize;
+	char arrRecived[TL_MAX_PACKET_SERIAL_SIZE];
+	uint8_t	iRcvSize;
+	thread_t *pReadThread;
+}tl_com_t;
+
+#endif /*  __TLIGHT_SERIAL_API_H__ */

@@ -34,18 +34,23 @@ CFLAGS = -Wall -Werror -g -I.
 endif
 
 APP_NAME = tlight
-APP_FILES = linux_thread linux_sem main_tlight tl_cfg_parse \
-			tl_controlers tl_packets tl_program tl_serial \
-			tl_api tl_log
+APP_FILES = linux_thread linux_sem tl_main tl_controlers \
+			tl_program tl_program_cfg tl_api tl_serial \
+			lib_tl_log lib_tl_config lib_tl_com lib_tl_packets
 			
 CFG_NAME = mgmt_tlight
-CFG_FILES = tl_log mgmt_tl_main mgmt_tl_client mgmt_tl_debug \
-			mgmt_tl_status mgmt_tl_program
+CFG_FILES = lib_tl_log mgmt_tl_main mgmt_tl_client \
+			mgmt_tl_debug mgmt_tl_status mgmt_tl_program
+
+SYM_NAME = sym_tlight
+SYM_FILES = linux_thread sym_tl_main lib_tl_log lib_tl_config \
+			lib_tl_com lib_tl_packets
 			
 APP_OBJ = $(addsuffix .o, $(APP_FILES))
 CFG_OBJ = $(addsuffix .o, $(CFG_FILES)) 
+SYM_OBJ = $(addsuffix .o, $(SYM_FILES)) 
 
-all: $(APP_NAME) $(CFG_NAME)
+all: $(APP_NAME) $(CFG_NAME) $(SYM_NAME)
 
 $(APP_NAME): $(APP_OBJ)
 	$(CC) -o $(APP_NAME) $(APP_OBJ)
@@ -53,8 +58,11 @@ $(APP_NAME): $(APP_OBJ)
 $(CFG_NAME): $(CFG_OBJ)
 	$(CC) -o $(CFG_NAME) $(CFG_OBJ)
 
+$(SYM_NAME): $(SYM_OBJ)
+	$(CC) -o $(SYM_NAME) $(SYM_OBJ)
+
 clean:
-	rm -f $(APP_NAME) $(CFG_NAME) *.o *~
+	rm -f $(APP_NAME) $(CFG_NAME) $(SYM_NAME) *.o *~
 
 
 

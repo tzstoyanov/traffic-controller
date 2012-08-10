@@ -1,6 +1,8 @@
 #ifndef __TLIGHT_LOG_H__
 #define __TLIGHT_LOG_H__
 
+#include "tl_program_api.h"
+
 typedef enum
 {
 	TL_LOG2NULL = 0,
