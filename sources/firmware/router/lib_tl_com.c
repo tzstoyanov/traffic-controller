@@ -1,37 +1,22 @@
 #include "os_linux.h"
 #include "linux_thread.h"
 #include "tl_types.h"
-#include "lib_tl_log.h"
-#include "tl_serial_api.h"
 #include "tl_packets_api.h"
+#include "tl_serial_api.h"
+#include "tl_program_api.h"
 #include "tl_controlers_api.h"
 #include "lib_tl_config.h"
 #include "lib_tl_packets.h"
+#include "lib_tl_log.h"
 
 int tl_com_send(tl_com_t *pCom)
 {
-	uint32_t iRet, iSize;
-	
-	iSize = strlen(pCom->arrSend);
-	iRet = write(pCom->iNetFd, pCom->arrSend, iSize);
-	if(iRet != iSize)
+	int32_t iRet;
+	iRet = write(pCom->iNetFd, pCom->arrSend, pCom->iSendSize);
+	if(iRet != pCom->iSendSize)
 		return ERROR;
-	return OK;	
-}
 
-int tl_com_local_pkt_verify(tl_com_t *pCom)
-{
-	if(pCom->iRcvSize != pCom->iSendSize || 0 != memcmp(pCom->arrSend, pCom->arrRecived, pCom->iRcvSize))
-	{
-		tl_log_error("Local Echo check failed !");
-		pCom->iLineSate = TL_COM_IDLE;
-		return ERROR;
-	}
-	if(TL_COM_LOCAL_VERIFY_WAIT == pCom->iLineSate)
-		pCom->iLineSate = TL_COM_PKT_WAIT;
-	else
-		pCom->iLineSate = TL_COM_IDLE;
-	return OK;
+	return OK;	
 }
 
 int tl_com_read_symbol(tl_com_t *pCom, uint8_t *pBuf)
@@ -47,8 +32,14 @@ int tl_com_read_symbol(tl_com_t *pCom, uint8_t *pBuf)
 	iRet = select (FD_SETSIZE, &stFdSet, NULL, NULL, &stTime);
 	if(0 >= iRet)
 		return ERROR;
-	if(1 == read(pCom->iNetFd, pBuf, 1))
+	iRet = 	read(pCom->iNetFd, pBuf, 1);
+	if(1 == iRet)
 		return OK;
+	if(0 == iRet)
+	{
+		close(pCom->iNetFd);
+		pCom->iNetFd = -1;	
+	}
 	return ERROR;
 }
 
@@ -61,69 +52,77 @@ int tl_com_read_packet(tl_com_t *pCom)
 	while(OK == iRet)
 	{
 		if(TL_PKT_START == iChar)
+		{
 			bBegin=1;
-
+			pCom->iRcvSize = 0;
+		}
 		if( bBegin && pCom->iRcvSize < (TL_MAX_PACKET_SERIAL_SIZE-1) )
 		{
-			pCom->arrRecived[pCom->iRcvSize] = iChar;
+			pCom->arrRecived[pCom->iRcvSize++] = iChar;
 			if(TL_PKT_END == iChar)
+			{
+				pCom->arrRecived[pCom->iRcvSize] = 0; 
+				if(TL_IS_DEBUG(RX) && TL_IS_DEBUG(PKT_DUMP))
+					tl_log_info("Got packet [%s] %d bytes, going to verify it", 
+								pCom->arrRecived, pCom->iRcvSize);
 				break;
-			pCom->iRcvSize++;	
+			}
+		}
+		else
+		{
+			if(TL_IS_DEBUG(RX))
+				tl_log_error("Cannot find useable packet, reset buffer");
+			pCom->iRcvSize = 0;
 		}
 		iRet = tl_com_read_symbol(pCom, &iChar);
 	}
-	
-	if(TL_PKT_END == pCom->arrRecived[pCom->iRcvSize] && OK == iRet)
-	{	
-		pCom->arrRecived[pCom->iRcvSize+1] = 0;
-		if(TL_IS_DEBUG(RX))
-		{
-			tl_log_info("Recived packet from %s, line state is %d", 
-				pCom->szPortName, pCom->iLineSate );
-			if(TL_IS_DEBUG(PKT_DUMP))
-				tl_log_info("[%s]", pCom->arrRecived);
-		}
-	
-		switch(pCom->iLineSate)
-		{
-			case TL_COM_LOCAL_VERIFY:
-			case TL_COM_LOCAL_VERIFY_WAIT:
-				tl_com_local_pkt_verify(pCom);
-				break;
-			case TL_COM_IDLE:				
-			case TL_COM_PKT_WAIT:
-				tl_com_pkt_process(pCom);
-				break;
-			default:
-				break;
-		}
-	}
-	else
-	{
-		tl_log_error("Received broken packet");
-		pCom->iLineSate = TL_COM_IDLE;
-		iRet = ERROR;
-	}
-	pCom->iRcvSize = 0;
-	pCom->arrRecived[0]=0;
 	return iRet;
 }
 
-int tl_com_sym_open(tl_com_t *pCom)
+int tl_com_sim_connect(tl_com_t *pCom)
+{
+	struct sockaddr_un stSockAddress;
+	
+	stSockAddress.sun_family = AF_UNIX;
+	sprintf(stSockAddress.sun_path, "%s", pCom->szPortName);
+	pCom->iNetFd = socket(PF_LOCAL,SOCK_STREAM, 0);
+	if(0 > pCom->iNetFd)
+		return ERROR;
+	if( 0 > connect(pCom->iNetFd, (struct sockaddr*)&stSockAddress, sizeof(struct sockaddr_un)))
+	{
+		if(errno != EINPROGRESS)
+		{
+			close(pCom->iNetFd);
+			pCom->iNetFd = -1;
+		}
+		return ERROR;	
+	}
+	
+	pCom->iLineSate = TL_COM_IDLE;
+		
+	if(TL_IS_DEBUG(INIT))
+		tl_log_info("Com port %s is ready", pCom->szPortName);
+		
+	return OK;
+}
+
+int tl_com_sim_open(tl_com_t *pCom)
 {
 	int iOn=1;
 	struct sockaddr_un stSockAddress;
 	
 	stSockAddress.sun_family = AF_UNIX;
 	sprintf(stSockAddress.sun_path, "%s", pCom->szPortName);
-	pCom->iNetFd = socket(PF_LOCAL,SOCK_DGRAM, 0);
-	if(0 > pCom->iNetFd)
+	pCom->iAccFd = socket(PF_LOCAL,SOCK_STREAM, 0);
+	if(0 > pCom->iAccFd)
 		return ERROR;
-	setsockopt(pCom->iNetFd, SOL_SOCKET, SO_REUSEADDR, (void *) &iOn, sizeof(iOn));
+	setsockopt(pCom->iAccFd, SOL_SOCKET, SO_REUSEADDR, (void *) &iOn, sizeof(iOn));
 	
 	unlink(stSockAddress.sun_path);
 	
-	if( 0 > bind(pCom->iNetFd, (struct sockaddr*)&stSockAddress, sizeof(struct sockaddr_un)))
+	if( 0 > bind(pCom->iAccFd, (struct sockaddr*)&stSockAddress, sizeof(struct sockaddr_un)))
+		return ERROR;
+	if(0 > listen(pCom->iAccFd, 1))
 		return ERROR;
 
 	chmod(stSockAddress.sun_path, 
