@@ -1,14 +1,14 @@
 #include "os_linux.h"
 #include "linux_thread.h"
 #include "tl_types.h"
+#include "tl_packets_api.h"
 #include "tl_api.h"
 #include "tl_serial.h"
 #include "tl_program.h"
-#include "tl_packets_api.h"
-#include "lib_tl_packets.h"
 #include "tl_controlers.h"
 #include "lib_tl_log.h"
 #include "lib_tl_config.h"
+#include "lib_tl_packets.h"
 #include "tl_main.h"
 
 static uint32_t tl_get_file_lines(char *szFileName)
@@ -72,20 +72,20 @@ int tl_parse_prog_timer(tl_controler_timer_t *pTimer, char **pszString, tl_instr
 	if(OK != tl_get_next_token(pszString, &szString) || NULL == szString)
 		return ERROR;
 	if(0 == strncmp(szString, TL_CMD_TIMER_CDOWN, strlen(TL_CMD_TIMER_CDOWN)))
-		pInstr->u.stCommand.state.stTimer.iCurrentAction = TL_TIMER_ACT_COUNTDOWN;
+		pInstr->u.stCommand.state.stTimer.iAction = TL_TIMER_ACT_COUNTDOWN;
 	else if(0 == strncmp(szString, TL_CMD_TIMER_DISPLAY, strlen(TL_CMD_TIMER_DISPLAY)))
-		pInstr->u.stCommand.state.stTimer.iCurrentAction = TL_TIMER_ACT_STATIC;
+		pInstr->u.stCommand.state.stTimer.iAction = TL_TIMER_ACT_STATIC;
 	else
 		return ERROR;
 	if(OK != tl_get_next_token(pszString, &szString) || NULL == szString)
 		return ERROR;
 	iDataLen = 0;
-	if(TL_TIMER_ACT_COUNTDOWN == pInstr->u.stCommand.state.stTimer.iCurrentAction)
+	if(TL_TIMER_ACT_COUNTDOWN == pInstr->u.stCommand.state.stTimer.iAction)
 	{			
 		iDigit = atoi(szString);
 		if(iDigit < 1 || iDigit > 255)
 			return ERROR;
-		pInstr->u.stCommand.state.stTimer.arrCurrentState[iDataLen++] = iDigit;	
+		pInstr->u.stCommand.state.stTimer.arrState[iDataLen++] = iDigit;	
 	}	
 	else
 	{
@@ -96,7 +96,7 @@ int tl_parse_prog_timer(tl_controler_timer_t *pTimer, char **pszString, tl_instr
 			szHex[0] = szString[j];
 			szHex[1] = szString[j+1];
 			iDigit = strtoul(szHex, NULL, 16);
-			pInstr->u.stCommand.state.stTimer.arrCurrentState[iDataLen++] = iDigit;
+			pInstr->u.stCommand.state.stTimer.arrState[iDataLen++] = iDigit;
 			j+=2;
 		}
 	}
@@ -104,9 +104,9 @@ int tl_parse_prog_timer(tl_controler_timer_t *pTimer, char **pszString, tl_instr
 	if(OK != tl_get_next_token(pszString, &szString) || NULL == szString)
 		return ERROR;
 	if(0 == strncmp(szString, TL_CMD_TIMER_RED, strlen(TL_CMD_TIMER_RED)))
-		pInstr->u.stCommand.state.stTimer.iCurrentColor = TL_TIMER_COLOR_RED;
+		pInstr->u.stCommand.state.stTimer.iColor = TL_TIMER_COLOR_RED;
 	else if(0 == strncmp(szString, TL_CMD_TIMER_GREEN, strlen(TL_CMD_TIMER_GREEN)))
-		pInstr->u.stCommand.state.stTimer.iCurrentColor = TL_TIMER_COLOR_GREEN;
+		pInstr->u.stCommand.state.stTimer.iColor = TL_TIMER_COLOR_GREEN;
 	else
 		return ERROR;
 	pInstr->iType = TL_INSTR_CMD;
@@ -117,11 +117,11 @@ int tl_parse_prog_timer(tl_controler_timer_t *pTimer, char **pszString, tl_instr
 
 	if(TL_IS_DEBUG(CONFIG))
 		tl_log_info("Got Timer %d, action 0x%X, color %d, state [0x%X 0x%X 0x%X], len %d", 
-			pTimer->stHead.iId, pInstr->u.stCommand.state.stTimer.iCurrentAction, 
-			pInstr->u.stCommand.state.stTimer.iCurrentColor, 
-			pInstr->u.stCommand.state.stTimer.arrCurrentState[0],
-			pInstr->u.stCommand.state.stTimer.arrCurrentState[1],
-			pInstr->u.stCommand.state.stTimer.arrCurrentState[2],
+			pTimer->stHead.iId, pInstr->u.stCommand.state.stTimer.iAction, 
+			pInstr->u.stCommand.state.stTimer.iColor, 
+			pInstr->u.stCommand.state.stTimer.arrState[0],
+			pInstr->u.stCommand.state.stTimer.arrState[1],
+			pInstr->u.stCommand.state.stTimer.arrState[2],
 			pInstr->u.stCommand.state.stTimer.iStateLen);	
 			
 	return OK;
@@ -199,6 +199,12 @@ int tl_parse_prog_file(char *szFileName, tl_program_t **ppProgram)
 			if(TL_IS_DEBUG(CONFIG))
 				tl_log_info("Got program loop at [%d]", (*ppProgram)->iLoopStep);	
 			continue;
+		}else if(0 == strncmp(szString, TL_CMD_EXIT, strlen(TL_CMD_EXIT)))
+		{
+			(*ppProgram)->iExitStep = iCount;
+			if(TL_IS_DEBUG(CONFIG))
+				tl_log_info("Got program exit at [%d]", (*ppProgram)->iExitStep);	
+			continue;			
 		}
 		else 
 		{

@@ -1,10 +1,11 @@
 #include "os_linux.h"
 #include "linux_thread.h"
 #include "tl_types.h"
-#include "lib_tl_log.h"
-#include "tl_serial_api.h"
 #include "tl_packets_api.h"
+#include "tl_serial_api.h"
+#include "tl_program_api.h"
 #include "tl_controlers_api.h"
+#include "lib_tl_log.h"
 #include "lib_tl_config.h"
 
 static tl_global_config_t stGlobalConfigDb;
@@ -155,7 +156,7 @@ int tl_parse_cfg_file(char *szFileName, tl_global_config_t *pGlobal, tl_new_cont
 			if(OK != tl_get_next_token(&szToken, &szString) || NULL == szString)
 				continue;
 			pGlobal->stPort.szPortName = strdup(szString);
-			if(0 == strncmp(szString, TL_COM_SERIAL_PREFIX, sizeof(TL_COM_SERIAL_PREFIX)))
+			if(0 == strncmp(szString, TL_COM_SERIAL_PREFIX, strlen(TL_COM_SERIAL_PREFIX)))
 				pGlobal->stPort.iType = TL_COM_SERIAL;
 			else	
 				pGlobal->stPort.iType = TL_COM_LOCALSOCK;

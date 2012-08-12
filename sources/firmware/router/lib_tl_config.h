@@ -29,9 +29,6 @@ int tl_parse_cfg_file(char *szFileName, tl_global_config_t*pGlobal,
 
 int tl_get_next_token(char **pszLine, char **pszString);
 
-extern uint32_t iTlightDebugSwitch;
-#define TL_IS_DEBUG(x) (iTlightDebugSwitch & TL_DEBUG_ ## x)
-
 tl_global_config_t *tl_get_global_dbase();
 
 #endif /* __TLIGHT_CONFIG_H__ */

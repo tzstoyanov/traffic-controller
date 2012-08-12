@@ -42,15 +42,15 @@ CFG_NAME = mgmt_tlight
 CFG_FILES = lib_tl_log mgmt_tl_main mgmt_tl_client \
 			mgmt_tl_debug mgmt_tl_status mgmt_tl_program
 
-SYM_NAME = sym_tlight
-SYM_FILES = linux_thread sym_tl_main lib_tl_log lib_tl_config \
-			lib_tl_com lib_tl_packets
+SIM_NAME = sim_tlight
+SIM_FILES = linux_thread sim_tl_main sim_tl_packets sim_tl_controlers \
+			 lib_tl_log lib_tl_config lib_tl_com lib_tl_packets
 			
 APP_OBJ = $(addsuffix .o, $(APP_FILES))
 CFG_OBJ = $(addsuffix .o, $(CFG_FILES)) 
-SYM_OBJ = $(addsuffix .o, $(SYM_FILES)) 
+SIM_OBJ = $(addsuffix .o, $(SIM_FILES)) 
 
-all: $(APP_NAME) $(CFG_NAME) $(SYM_NAME)
+all: $(APP_NAME) $(CFG_NAME) $(SIM_NAME)
 
 $(APP_NAME): $(APP_OBJ)
 	$(CC) -o $(APP_NAME) $(APP_OBJ)
@@ -58,11 +58,11 @@ $(APP_NAME): $(APP_OBJ)
 $(CFG_NAME): $(CFG_OBJ)
 	$(CC) -o $(CFG_NAME) $(CFG_OBJ)
 
-$(SYM_NAME): $(SYM_OBJ)
-	$(CC) -o $(SYM_NAME) $(SYM_OBJ)
+$(SIM_NAME): $(SIM_OBJ)
+	$(CC) -o $(SIM_NAME) $(SIM_OBJ)
 
 clean:
-	rm -f $(APP_NAME) $(CFG_NAME) $(SYM_NAME) *.o *~
+	rm -f $(APP_NAME) $(CFG_NAME) $(SIM_NAME) *.o *~
 
 
 

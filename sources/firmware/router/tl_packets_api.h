@@ -33,23 +33,28 @@
 
 #define TL_MODULE_ERR_OK		0
 #define TL_MODULE_ERR_INIT		1
-#define TL_MODULE_ERR_HW		2
-#define TL_MODULE_ERR_COMM		3
-#define TL_MODULE_ERR_SLAVE		4
-#define TL_MODULE_ERR_TIMEOUT	5
-#define TL_MODULE_ERR_MISMATCH	6
+#define TL_MODULE_ERR_HW_ERR	2
+#define TL_MODULE_ERR_HW_WARN	3
+#define TL_MODULE_ERR_COMM		4
+#define TL_MODULE_ERR_SLAVE		5
+#define TL_MODULE_ERR_TIMEOUT	6
+#define TL_MODULE_ERR_MISMATCH	7
 
 #define TL_PKT_START	':'
 #define TL_PKT_END		';'
 
 #define TL_ADDRESS_BCAST	0xFF
 
+#define TL_MAX_PACKET_SERIAL_SIZE 	25
+#define TL_MAX_PACKET_CAN_SIZE 		11
+#define TL_MAX_PACKET_CAN_DATA 		8
+
 typedef struct
 {
 	uint8_t	iCommand;
 	uint8_t	iAddress;
 	uint8_t	iLen;
-	uint8_t	arrData[8];	
+	uint8_t	arrData[TL_MAX_PACKET_CAN_DATA];	
 }t_can_packet_t;
 
 #endif /* __TLIGHT_PACKETS_API_H__ */

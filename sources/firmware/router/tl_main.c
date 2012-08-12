@@ -2,18 +2,17 @@
 #include "linux_thread.h"
 #include "linux_sem.h"
 #include "tl_types.h"
+#include "tl_packets_api.h"
 #include "lib_tl_log.h"
 #include "tl_api.h"
 #include "tl_serial.h"
 #include "tl_program.h"
-#include "tl_packets_api.h"
-#include "lib_tl_packets.h"
 #include "tl_controlers.h"
 #include "lib_tl_config.h"
+#include "lib_tl_packets.h"
 #include "tl_main.h"
 
 static tl_global_t stGlobal;
-uint32_t iTlightDebugSwitch = 0;
 
 void print_help(char *pPname)
 {
@@ -38,22 +37,10 @@ void print_help(char *pPname)
 	fflush(stdout);
 }
 
-void tl_debug_switch_set(uint32_t iDebug)
-{
-	 iTlightDebugSwitch = iDebug;
-	 tl_log_info("Set debug flag to 0x%X", iDebug);
-}
-
-int tl_debug_get(uint32_t *pDebugSwitch, uint32_t *pLogDest)
-{
-	*pDebugSwitch = iTlightDebugSwitch;
-	*pLogDest = iTlLogDestination;
-	return OK;
-}
-
 void tl_check_system_status()
 {
 	uint32_t iCritical=0, iWarning = 0, i;
+	uint32_t iOldCritical=0, iOldWarning = 0;
 	tl_global_t *pGlobal = tl_get_global();
 	tl_global_config_t *pDbGlobal = tl_get_global_dbase();
 	
@@ -61,32 +48,60 @@ void tl_check_system_status()
 	{
 		if(NULL == pDbGlobal->arrDevices[i])
 			break;
-		if( TL_MODULE_ERR_OK != pDbGlobal->arrDevices[i]->iStatus)
+		if(TL_MODULE_MASTER == pDbGlobal->arrDevices[i]->iType)
+			continue;	
+		if(pDbGlobal->arrDevices[i]->iWdMiss >= pDbGlobal->iDeadCount)
+		{	
+			if(pDbGlobal->arrDevices[i]->iWdMiss == pDbGlobal->iDeadCount)
+				tl_log_error("Status for %s not updated for long time", 
+								pDbGlobal->arrDevices[i]->szName);
+			if(	pDbGlobal->arrDevices[i]->iCritical)
+				iCritical++;
+			else
+				iWarning++;	
+		}
+		else if( TL_MODULE_ERR_OK != pDbGlobal->arrDevices[i]->iStatus)
 		{
-			if(pDbGlobal->arrDevices[i]->iCritical)
+			if(	pDbGlobal->arrDevices[i]->iCritical && 
+				TL_MODULE_ERR_HW_WARN != pDbGlobal->arrDevices[i]->iStatus &&
+				pDbGlobal->arrDevices[i]->iErrorCount >= pDbGlobal->iDeadCount)
 				iCritical++;
 			else
 				iWarning++;
 		}
+
 	}
-	if(pGlobal->iCritError && 0 == iCritical)	
+	iOldCritical = pGlobal->iCritError;
+	iOldWarning = pGlobal->iWarning;
+	pGlobal->iCritError = iCritical;
+	pGlobal->iWarning = iWarning;	
+	if(iOldCritical && 0 == iCritical)	
 	{
 		tl_log_info("Restore from critical error, reset current program");
 		tl_program_reset(pGlobal->pCurrentProgram);	
-	}
-	if(iCritical && 0 == pGlobal->iCritError)
+	}else if(iCritical && 0 == iOldCritical)
 	{
 		tl_send_failsafe();
 		tl_log_error("Critical error detected, enter in FailSafe mode");
-		tl_program_stop(pGlobal->pCurrentProgram);
-	}
-	pGlobal->iCritError = iCritical;
-	pGlobal->iWarning = iWarning;
+		tl_program_pause(pGlobal->pCurrentProgram);
+	}else if(iCritical > iOldCritical)
+		tl_log_error("New critical error detected");
+	if( iWarning > iOldWarning )	
+		tl_log_error("New warning detected");
+	else if(0 == iWarning && iOldWarning)
+		tl_log_info("All warnings cleared");
+
 }
 
 tl_global_t *tl_get_global()
 {
 	return &stGlobal;
+}
+
+void tl_exit_callback(void *pCookie)
+{
+	tl_log_info("Exiting");
+	exit(1);
 }
 
 int32_t tl_wd_thread(thread_t *pThread)
@@ -101,13 +116,23 @@ int32_t tl_wd_thread(thread_t *pThread)
 	{
 		if(NULL == pDbGlobal->arrDevices[i])
 			break;
+		if(TL_MODULE_MASTER == pDbGlobal->arrDevices[i]->iType)
+			continue;		
+		pDbGlobal->arrDevices[i]->iWdMiss++;
 		if(TL_MODULE_GATE != pDbGlobal->arrDevices[i]->iType)
 			continue;
 		tl_ask_controler_state(i);
-		if(pDbGlobal->arrDevices[i]->iSendConfig)
-			tl_send_controlers_config(i);
 	}
-
+	for(i=1; i<TL_MAX_CONTROLERS; i++)
+	{
+		if(NULL == pDbGlobal->arrDevices[i])
+			break;
+		if(pDbGlobal->arrDevices[i]->iSendConfig)
+		{
+			tl_send_controlers_config(i);
+			pDbGlobal->arrDevices[i]->iSendConfig = 0;
+		}
+	}	
 	stDelay.tv_sec = pDbGlobal->iWdInterval / 1000;
 	stDelay.tv_usec = 1000*(pDbGlobal->iWdInterval % 1000);
 	pGlobal->pWDThread = thread_timer_add(&(pGlobal->stMaintThread), tl_wd_thread, pDbGlobal, &stDelay); 
@@ -132,9 +157,24 @@ void tl_daemonzie(int iSem)
 		exit(1);
 }
 
+void tl_mask_signals()
+{
+	sigset_t sig_mask;
+	
+    sigfillset(&sig_mask);
+    sigdelset(&sig_mask, SIGINT);
+    sigdelset(&sig_mask, SIGHUP);
+    sigdelset(&sig_mask, SIGTERM);
+    sigdelset(&sig_mask, SIGPIPE);
+    sigdelset(&sig_mask, SIGUSR1);
+    sigdelset(&sig_mask, SIGUSR2);
+    
+    /*pthread_sigmask(SIG_SETMASK, &sig_mask, NULL);*/
+}
+
 int main(int argc, char **argv)
 {
-	int iOpt, iDaemon=0, iSem, iCfg = 0;
+	int iOpt, iDaemon=0, iSem=-1, iCfg = 0;
 	struct timeval stWDDelay;
 	tl_global_config_t *pDbGlobal = tl_get_global_dbase();
 	struct option 	stLongOptions[] =
@@ -149,7 +189,10 @@ int main(int argc, char **argv)
 
 	bzero(&stGlobal, sizeof(tl_global_t));
 	bzero(pDbGlobal, sizeof(tl_global_config_t));
-	
+	stGlobal.iApiFd = -1;
+	pDbGlobal->stPort.iNetFd = -1;
+	pDbGlobal->stPort.iAccFd = -1;
+
 	tl_log_init(TL_LOG2CONSOLE, TL_LOG_PREFIX);
 	
 	while ( (iOpt = getopt_long( argc, argv, "c:vhd", stLongOptions, NULL )) != -1 )
@@ -199,14 +242,21 @@ int main(int argc, char **argv)
 	thread_main_init(&(stGlobal.stMaintThread));
 	if(OK != tl_com_port_open(&(pDbGlobal->stPort)))
 	{
-		sem_give(iSem);
+		if(iSem != -1)
+			sem_give(iSem);
 		exit(1);
 	}
-	pDbGlobal->stPort.pReadThread = 
+	if(pDbGlobal->stPort.iNetFd > 0)
+		pDbGlobal->stPort.pReadThread = 
 				thread_read_add(&(stGlobal.stMaintThread), tl_com_read, &(pDbGlobal->stPort), pDbGlobal->stPort.iNetFd);
+	else
+		pDbGlobal->stPort.pAcceptThread = 
+				thread_read_add(&(stGlobal.stMaintThread), tl_com_accept, &(pDbGlobal->stPort), pDbGlobal->stPort.iAccFd);
+						
 	if(OK != tl_api_init())
 	{
-		sem_give(iSem);
+		if(iSem != -1)
+			sem_give(iSem);
 		exit(1);
 	}
 	tl_check_controlers();
@@ -216,7 +266,8 @@ int main(int argc, char **argv)
 	stWDDelay.tv_usec = 1000*(pDbGlobal->iWdInterval % 1000);
 	stGlobal.pWDThread = thread_timer_add(&(stGlobal.stMaintThread), tl_wd_thread, pDbGlobal, &stWDDelay);
 
-	sem_give(iSem);
+	if(iSem != -1)
+		sem_give(iSem);
 
 	if(TL_IS_DEBUG(INIT))
 		tl_log_info("Init OK, run main loop");

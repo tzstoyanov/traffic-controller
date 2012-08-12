@@ -8,10 +8,15 @@ typedef struct
 	uint8_t	iId;
 	uint8_t iType;
 	char *szName;
+	void *pData;
 	uint8_t iSendConfig;
 	uint8_t iGateId;
 	uint8_t	iStatus;
 	uint8_t iCritical;
+	uint32_t iErrorCount;
+	uint8_t iWdMiss;
+	uint8_t bLastCommandValid;
+	char arrLastCommand[TL_MAX_PACKET_SERIAL_SIZE];
 	tl_controler_packet_callback_t fPktProcess;
 }tl_controler_t;
 

@@ -1,4 +1,5 @@
 #include "os_linux.h"
+#include "linux_thread.h"
 #include "tl_types.h"
 #include "tl_api.h"
 #include "lib_tl_log.h"
@@ -8,9 +9,10 @@
 
 void print_help_status()
 {
-	tl_log_info("\t--status help\tShow this status help");	
-	tl_log_info("\t--status system\tShow current system status");
-	tl_log_info("\t--status modules\tShow status of all system modules");
+	tl_log_info("\t--status help\t\tShow this status help");	
+	tl_log_info("\t--status system\t\tShow current system status");
+	tl_log_info("\t--status module\t\tShow status of all system modules");
+	tl_log_info("\t--status module=NAME\tShow status of requested system module");
 	tl_log_info("\t--status program\tShow status of current programs");
 }
 
@@ -27,8 +29,11 @@ void get_status()
 		tl_log_info("\tDead Count %d", stStatus.iDeadCount);
 		tl_log_info("\tCommunication port: %s", stStatus.szComPort);
 		tl_log_info("\tCommunication timeout %d msec", stStatus.iCommTimeout);
-		tl_log_info("\tProgram in progress: %s", 
-				(0==stStatus.szProgInProgress[0]?"None":stStatus.szProgInProgress));
+		tl_log_info("\tLoaded program: %s", 
+				(0==stStatus.szProgLoaded[0]?"None":stStatus.szProgLoaded));
+		if(0 != stStatus.szProgLoaded[0])
+			tl_log_info("\tProgram is in state %s, executed %d times",
+			 		tl_programstate2string(stStatus.iProgState), stStatus.iProgLoop);
 		tl_log_info("\tDebug flags: 0x%X", stStatus.iDebugFlags);
 		tl_log_info("\tLog destination: %s", 
 			(TL_LOG2NULL==stStatus.iLogDest?"none":
@@ -44,16 +49,14 @@ void print_status_lamp(char *szGaps, tl_lamp_state_t *pLamp)
 
 void print_status_timer(char *szGaps, tl_timer_state_t *pTimer)
 {
-	if(TL_TIMER_ACT_COUNTDOWN == pTimer->iCurrentAction)
+	if(TL_TIMER_ACT_COUNTDOWN == pTimer->iAction)
 		tl_log_info("%sTimer countdown %ds in %s color", szGaps,
-				pTimer->arrCurrentState[0], 
-				tl_color2string(pTimer->iCurrentColor));
-	if(TL_TIMER_ACT_STATIC == pTimer->iCurrentAction)
-		tl_log_info("%sDislay static segments 0x%X 0x%X 0x%X in %s color", szGaps,
-					pTimer->arrCurrentState[0], 
-					pTimer->arrCurrentState[1], 
-					pTimer->arrCurrentState[2], 
-					tl_color2string(pTimer->iCurrentColor));
+				pTimer->arrState[0], 
+				tl_color2string(pTimer->iColor));
+	if(TL_TIMER_ACT_STATIC == pTimer->iAction)
+		tl_log_info("%sDisplay static segments 0x%X 0x%X 0x%X in %s color", szGaps,
+					pTimer->arrState[0], pTimer->arrState[1], 
+					pTimer->arrState[2], tl_color2string(pTimer->iColor));
 }
 
 void print_status_mod(tl_api_status_mod_t *pModStatus)
@@ -62,8 +65,15 @@ void print_status_mod(tl_api_status_mod_t *pModStatus)
 			pModStatus->szName, tl_type2string(pModStatus->iType), 
 			pModStatus->iAddress, tl_status2string(pModStatus->iStatus));
 	if(pModStatus->iGateId)		
-		tl_log_info("\t  Connected to gate %d", pModStatus->iGateId);
-	
+		tl_log_info("\t  Connected to gate %d, Errors %d, WdMiss %d, %s", 
+				pModStatus->iGateId, pModStatus->iErrorCount, pModStatus->iWdMiss,
+				pModStatus->iCritical?"Critical":"Not critical" );
+	else
+		tl_log_info("\t  Errors %d, WdMiss %d, %s", 
+				pModStatus->iErrorCount, pModStatus->iWdMiss,
+				pModStatus->iCritical?"Critical":"Not critical");		
+	if(pModStatus->bLastCommandValid)
+		tl_log_info("\t  Last valid command [%s]", pModStatus->arrLastCommand);	
 	if(TL_MODULE_LAMP == pModStatus->iType)
 		print_status_lamp("\t  ", &(pModStatus->u.stLamp));
 	if(TL_MODULE_TIMER == pModStatus->iType)
@@ -100,9 +110,10 @@ void print_cmd_instruction(tl_api_status_instr_t *pInstruction)
 void print_status_program(tl_api_status_prog_t *pProgram)
 {
 	tl_log_info("\t Program %s, %s:", 
-		pProgram->szFileName, tl_prrogramstate2string(pProgram->iState));
-	tl_log_info("\t  Executed %d times, loop at step %d, %d instructions:", 
-			pProgram->iLoopCount, pProgram->iLoopStep, pProgram->iInstrCount);
+		pProgram->szFileName, tl_programstate2string(pProgram->iState));
+	tl_log_info("\t  Executed %d times, loop step %d, exit step %d, %d instructions:", 
+			pProgram->iLoopCount, pProgram->iLoopStep, 
+			pProgram->iExitStep, pProgram->iInstrCount);
 }
 
 void get_status_prog()
@@ -120,11 +131,16 @@ void get_status_prog()
 					tl_mgmt_get(get_client_fd(), (uint8_t*)(&stProgram), sizeof(stProgram) ))
 			{
 				print_status_program(&stProgram);
+				tl_log_info("   INIT stage:");
 				for(j=0; j<stProgram.iInstrCount; j++)
 				{
 					if(sizeof(stInstruction) == 
 						tl_mgmt_get(get_client_fd(), (uint8_t*)(&stInstruction), sizeof(stInstruction) ))
 					{
+						if(j == stProgram.iLoopStep)
+							tl_log_info("   LOOP stage:");
+						if(j == stProgram.iExitStep)
+							tl_log_info("   EXIT stage:");							
 						switch(stInstruction.stInstruction.iType)
 						{	
 							case TL_INSTR_DELAY: 
@@ -143,12 +159,14 @@ void get_status_prog()
 		}	
 
 	}
-}		
 
+}		
 void process_status(char *szArgument, char *szValue)
 {
+	uint8_t *pArg = NULL;
+	uint32_t iArgLen = 0;
 	uint8_t iCommand;
-
+	
 	if(0 == strncmp(szArgument, "help", strlen("help")))
 	{
 		print_help_status();
@@ -157,9 +175,14 @@ void process_status(char *szArgument, char *szValue)
 	}else if(0 == strncmp(szArgument, "system", strlen("help")))	
 	{
 		iCommand = TL_API_GET_STATUS;
-	}else if(0 == strncmp(szArgument, "modules", strlen("modules")))	
+	}else if(0 == strncmp(szArgument, "module", strlen("modules")))	
 	{
 		iCommand = TL_API_GET_STATUS_MOD;
+		if(szValue)
+		{
+			pArg = (uint8_t*)szValue;
+			iArgLen = strlen(szValue) + 1;		
+		}
 	}else if(0 == strncmp(szArgument, "program", strlen("program")))	
 	{
 		iCommand = TL_API_GET_STATUS_PROG;
@@ -171,7 +194,7 @@ void process_status(char *szArgument, char *szValue)
 		return;
 	}
 	
-	if(OK == tl_mgmt_send(get_client_fd(), iCommand, NULL, 0))
+	if(OK == tl_mgmt_send(get_client_fd(), iCommand, pArg, iArgLen))
 	{
 		switch(iCommand)
 		{

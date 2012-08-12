@@ -9,9 +9,6 @@
 #define ERROR (-1)
 #endif
 
-#define TL_MAX_PACKET_SERIAL_SIZE 	25
-#define TL_MAX_PACKET_CAN_SIZE 		11
-
 #define TL_MAX_CONTROLERS	255
 #define TL_MAX_TIMER_SEGMENTS	3
 #define TL_MAX_LAMP_SEGMENTS	4

@@ -10,7 +10,9 @@ typedef enum
 typedef enum
 {
 	TL_PROGRAM_RUNNING,
-	TL_PROGRAM_PAUSE
+	TL_PROGRAM_PAUSE,
+	TL_PROGRAM_EXITING,
+	TL_PROGRAM_EXIT
 }tl_program_state_t;
 
 typedef struct
@@ -20,16 +22,16 @@ typedef struct
 
 typedef struct
 {
-	uint8_t	iCurrentAction;
-	uint8_t	iCurrentColor;	
-	uint8_t	arrCurrentState[TL_MAX_TIMER_SEGMENTS];
+	uint8_t	iAction;
+	uint8_t	iColor;	
+	uint8_t	arrState[TL_MAX_TIMER_SEGMENTS];
 	uint8_t	iStateLen;
 }tl_timer_state_t;
 
 typedef enum
 {
 	TL_INSTR_CMD,
-	TL_INSTR_DELAY
+	TL_INSTR_DELAY,
 }tl_instruction_type_t;
 
 typedef struct

@@ -2,6 +2,7 @@
 #define __TLIGHT_LOG_H__
 
 #include "tl_program_api.h"
+#include "tl_serial_api.h"
 
 typedef enum
 {
@@ -10,6 +11,7 @@ typedef enum
 	TL_LOG2SYSLOG = 2
 }tl_log_dest_t;
 
+extern uint32_t iTlightDebugSwitch;
 extern tl_log_dest_t iTlLogDestination;
 
 #define TL_DEBUG_DEVICES	0x000F
@@ -29,6 +31,8 @@ extern tl_log_dest_t iTlLogDestination;
 
 #define TL_LOG_NEWLINE	"\n\r"
 
+#define TL_IS_DEBUG(x) (iTlightDebugSwitch & TL_DEBUG_ ## x)
+
 int tl_log_init(tl_log_dest_t  iDest, char *szPrefix);
 void tl_log_dest_set(tl_log_dest_t  iDest);
 
@@ -38,6 +42,13 @@ void tl_log_error(const char *format, ... );
 char *tl_status2string(uint8_t iStatus);
 char *tl_type2string(uint8_t iType);
 char *tl_color2string(uint8_t iColor);
-char *tl_prrogramstate2string(tl_program_state_t iState);
+char *tl_programstate2string(tl_program_state_t iState);
+char *tl_lampstate2string(tl_lamp_state_t *pState);
+char *tl_timerstate2string(tl_timer_state_t *pState);
+
+void tl_debug_switch_set(uint32_t iDebug);
+int tl_debug_get(uint32_t *pDebugSwitch, uint32_t *pLogDest);
+char *tl_serialstate2string(tl_com_state_t iState);
+char *tl_command2string(uint8_t iCommand);
 
 #endif /* __TLIGHT_LOG_H__ */

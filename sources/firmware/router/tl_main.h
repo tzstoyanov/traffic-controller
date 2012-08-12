@@ -19,8 +19,7 @@ typedef struct
 
 tl_global_t *tl_get_global();
 
-void tl_debug_switch_set(uint32_t iDebug);
-int tl_debug_get(uint32_t *pDebugSwitch, uint32_t *pLogDest);
+void tl_exit_callback(void *pCookie);
 
 #endif /* __TLIGHT_MAIN_H__ */
 

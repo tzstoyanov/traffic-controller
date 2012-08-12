@@ -1,10 +1,10 @@
 #include "os_linux.h"
 #include "linux_thread.h"
 #include "tl_types.h"
+#include "tl_packets_api.h"
 #include "tl_api.h"
 #include "tl_serial.h"
 #include "tl_program.h"
-#include "tl_packets_api.h"
 #include "tl_controlers.h"
 #include "lib_tl_log.h"
 #include "lib_tl_config.h"
@@ -24,8 +24,11 @@ int tl_api_stop(int iClient, int iFd, uint32_t iCommand, uint32_t iLen, uint8_t 
  tl_global_t *pGlobal = tl_get_global();
 	tl_send_failsafe();
 	tl_log_info("Enter in FailSafe mode and exit the application");
-	tl_program_stop(pGlobal->pCurrentProgram);
-	exit(0);	
+	if(pGlobal->pCurrentProgram)
+		tl_program_exit(pGlobal->pCurrentProgram, tl_exit_callback, NULL);
+	else
+		tl_exit_callback(NULL);
+	return OK;		
 }
 
 int tl_api_set_debug_flag(int iClient, int iFd, uint32_t iCommand, uint32_t iLen, uint8_t *pData)
@@ -69,11 +72,13 @@ int tl_api_get_status(int iClient, int iFd, uint32_t iCommand, uint32_t iLen, ui
 	stStatus.iLogDest = iLogDest;
 	stStatus.iCritError = pGlobal->iCritError;
 	stStatus.iWarning = pGlobal->iWarning;	
-	stStatus.szProgInProgress[0]=0;
+	stStatus.szProgLoaded[0]=0;
 	if(pGlobal->pCurrentProgram)
 	{
-		strncpy(stStatus.szProgInProgress, pGlobal->pCurrentProgram->szProgramFile, 128); 
-		stStatus.szProgInProgress[127]=0;
+		strncpy(stStatus.szProgLoaded, pGlobal->pCurrentProgram->szProgramFile, 128); 
+		stStatus.szProgLoaded[127]=0;
+		stStatus.iProgState = pGlobal->pCurrentProgram->iState;
+		stStatus.iProgLoop = pGlobal->pCurrentProgram->iLoopCount;
 	}
 	tl_controlers_get_state(&stStatus.iDeviceNumber, &stStatus.iDeviceOk, &stStatus.iDeviceError);
 	
@@ -81,38 +86,64 @@ int tl_api_get_status(int iClient, int iFd, uint32_t iCommand, uint32_t iLen, ui
 	return OK;
 }
 
+int tl_api_send_mod(int iFd, tl_controler_t *pControler)
+{
+	tl_api_status_mod_t stMod;
+
+	stMod.iAddress = pControler->iId;
+	stMod.iType	= pControler->iType;
+	strncpy(stMod.szName, pControler->szName, 64); stMod.szName[63]=0;
+	stMod.iGateId = pControler->iGateId;
+	stMod.iStatus = pControler->iStatus;
+	stMod.iCritical = pControler->iCritical;
+	stMod.iErrorCount = pControler->iErrorCount;
+	stMod.iWdMiss = pControler->iWdMiss;
+	stMod.bLastCommandValid = pControler->bLastCommandValid;
+	memcpy(stMod.arrLastCommand, pControler->arrLastCommand, TL_MAX_PACKET_SERIAL_SIZE);
+	if(TL_MODULE_LAMP == stMod.iType)
+		memcpy(&stMod.u.stLamp, 
+				&(((tl_controler_lamp_t*)(pControler))->stCurrentState),	
+				sizeof(tl_lamp_state_t ));
+	else if	(TL_MODULE_TIMER == stMod.iType)
+		memcpy(&stMod.u.stTimer, 
+				&(((tl_controler_timer_t*)(pControler))->stCurrentState),	
+				sizeof(tl_timer_state_t ));
+	
+	return tl_api_reply(iFd, (uint8_t*)&stMod, sizeof(stMod));	
+}
+
 int tl_api_get_status_mod(int iClient, int iFd, uint32_t iCommand, uint32_t iLen, uint8_t *pData)
 {
-	uint8_t i;
-	tl_api_status_mod_t stMod;
+	uint8_t i, iCount=0;
+	tl_controler_t *pControler = NULL;
 	tl_global_config_t *pGlobalDb = tl_get_global_dbase();
 	
 	for(i=1; i<TL_MAX_CONTROLERS; i++)
+	{
 		if(NULL == pGlobalDb->arrDevices[i])
 			break;
-	i--;		
-	tl_api_reply(iFd, (uint8_t*)&i, sizeof(i));
-	if(i)
+		if(pData)
+		{	
+			if(0 == strncmp(pGlobalDb->arrDevices[i]->szName, (char*)pData, iLen))
+			{	
+				iCount++;
+				pControler = pGlobalDb->arrDevices[i];
+				break;
+			}
+		}else
+			iCount++;
+
+	}
+	tl_api_reply(iFd, (uint8_t*)&iCount, sizeof(iCount));
+	if(pControler)
+		return tl_api_send_mod(iFd, pControler);
+	if(iCount)
 	{
 		for(i=1; i<TL_MAX_CONTROLERS; i++)
 		{
 			if(NULL == pGlobalDb->arrDevices[i])
 				break;
-			stMod.iAddress = i;
-			stMod.iType	= pGlobalDb->arrDevices[i]->iType;
-			strncpy(stMod.szName, pGlobalDb->arrDevices[i]->szName, 64); stMod.szName[63]=0;
-			stMod.iGateId = pGlobalDb->arrDevices[i]->iGateId;
-			stMod.iStatus = pGlobalDb->arrDevices[i]->iStatus;
-			if(TL_MODULE_LAMP == stMod.iType)
-				memcpy(&stMod.u.stLamp, 
-						&(((tl_controler_lamp_t*)(pGlobalDb->arrDevices[i]))->stCurrentState),	
-						sizeof(tl_lamp_state_t ));
-			else if	(TL_MODULE_TIMER == stMod.iType)
-				memcpy(&stMod.u.stTimer, 
-						&(((tl_controler_timer_t*)(pGlobalDb->arrDevices[i]))->stCurrentState),	
-						sizeof(tl_timer_state_t ));
-	
-			tl_api_reply(iFd, (uint8_t*)&stMod, sizeof(stMod));		
+			tl_api_send_mod(iFd, pGlobalDb->arrDevices[i]);	
 		}
 	}
 	
@@ -137,6 +168,7 @@ int tl_api_get_status_prog(int iClient, int iFd, uint32_t iCommand, uint32_t iLe
 	stProgram.iState = pGlobal->pCurrentProgram->iState;
 	stProgram.iLoopCount = pGlobal->pCurrentProgram->iLoopCount;
 	stProgram.iLoopStep = pGlobal->pCurrentProgram->iLoopStep;
+	stProgram.iExitStep = pGlobal->pCurrentProgram->iExitStep;
 	stProgram.iInstrCount = pGlobal->pCurrentProgram->iCount;
 	strncpy(stProgram.szFileName, pGlobal->pCurrentProgram->szProgramFile, 512);
 	stProgram.szFileName[511]=0;
