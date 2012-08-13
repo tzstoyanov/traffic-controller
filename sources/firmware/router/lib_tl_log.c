@@ -32,7 +32,8 @@ void tl_log_info(const char *format, ... )
 	if(TL_LOG2CONSOLE == iTlLogDestination)
 	{
 		vprintf(format, args);
-		printf("%s", TL_LOG_NEWLINE);
+		putchar('\n');
+		putchar('\r');
 		fflush(stdout);
 	}
 	else
@@ -53,7 +54,8 @@ void tl_log_error(const char *format, ... )
 	if(TL_LOG2CONSOLE == iTlLogDestination)
 	{
 		vprintf(format, args);
-		printf("%s", TL_LOG_NEWLINE);
+		putchar('\n');
+		putchar('\r');
 		fflush(stdout);		
 	}
 	else
