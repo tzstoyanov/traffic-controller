@@ -75,6 +75,7 @@ int tl_com_pakcet_process(tl_com_t *pCom)
 			default:
 				break;
 		}
+		iRet = OK;
 	}
 	else
 	{

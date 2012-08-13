@@ -12,6 +12,18 @@
 int tl_com_send(tl_com_t *pCom)
 {
 	int32_t iRet;
+	fd_set stFdSet;
+	struct timeval stTime;
+
+	if(pCom->iNetFd < 0 )
+		return ERROR;
+	stTime.tv_sec = pCom->iTimeout / 1000;
+	stTime.tv_usec = 1000*(pCom->iTimeout % 1000);
+	FD_ZERO(&stFdSet);		
+	FD_SET (pCom->iNetFd, &stFdSet);
+	iRet = select (FD_SETSIZE, NULL, &stFdSet, NULL, &stTime);
+	if(0 >= iRet)
+		return ERROR;
 	iRet = write(pCom->iNetFd, pCom->arrSend, pCom->iSendSize);
 	if(iRet != pCom->iSendSize)
 		return ERROR;
