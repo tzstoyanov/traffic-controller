@@ -183,3 +183,8 @@ int tl_debug_get(uint32_t *pDebugSwitch, uint32_t *pLogDest)
 	return OK;
 }
 
+int tl_clock_gettime(struct timeval *pNow)
+{
+	return gettimeofday(pNow,NULL);
+}
+

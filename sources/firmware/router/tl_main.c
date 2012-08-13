@@ -30,7 +30,8 @@ void print_help(char *pPname)
 	printf("\t\t %08X\tCfg Packets send%s", TL_DEBUG_TX_CFG, TL_LOG_NEWLINE);	
 	printf("\t\t %08X\tCmd Packets send%s", TL_DEBUG_TX_CMD, TL_LOG_NEWLINE);	
 	printf("\t\t %08X\tRequest Packets send%s", TL_DEBUG_TX_RQST, TL_LOG_NEWLINE);		
-	printf("\t\t %08X\tDump Packets contents%s", TL_DEBUG_PKT_DUMP, TL_LOG_NEWLINE);	
+	printf("\t\t %08X\tDump Packets contents%s", TL_DEBUG_PKT_DUMP, TL_LOG_NEWLINE);
+	printf("\t\t %08X\tProgram execution%s", TL_DEBUG_PROGRAM, TL_LOG_NEWLINE);	
 	printf("\t\t %08X\tConfig files parse%s", TL_DEBUG_CONFIG, TL_LOG_NEWLINE);	
 	printf("\t\t %08X\tManagement requests%s", TL_DEBUG_API, TL_LOG_NEWLINE);
 	
@@ -100,7 +101,8 @@ tl_global_t *tl_get_global()
 
 void tl_exit_callback(void *pCookie)
 {
-	tl_log_info("Exiting");
+	tl_send_failsafe();
+	tl_log_info("Enter in FailSafe mode and exit the application");
 	exit(1);
 }
 

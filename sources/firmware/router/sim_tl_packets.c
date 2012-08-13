@@ -165,7 +165,11 @@ int32_t sim_tl_com_read(thread_t *pThread)
 	
 	pCom->pReadThread  = NULL;
 	
-	tl_com_read_packet(pCom);
+	if(OK != tl_com_read_packet(pCom))
+	{
+		tl_log_info("Read error, exit the simulation");
+		exit(1);
+	}
 	
 	memcpy(pCom->arrSend, pCom->arrRecived, TL_MAX_PACKET_SERIAL_SIZE);
 	pCom->iSendSize = pCom->iRcvSize;

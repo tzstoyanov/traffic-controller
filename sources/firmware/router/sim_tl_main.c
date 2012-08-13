@@ -44,7 +44,7 @@ int32_t sim_tl_wd_thread(thread_t *pThread)
 		if(TL_MODULE_GATE != pDbGlobal->arrDevices[i]->iType)
 			continue;
 		pDbGlobal->arrDevices[i]->iWdMiss++;
-		if(pDbGlobal->arrDevices[i]->iWdMiss >= pDbGlobal->iDeadCount)
+		if(pDbGlobal->arrDevices[i]->iWdMiss == pDbGlobal->iDeadCount)
 			tl_log_info("%s WatchDog %d, eneter in FailSafe mode", 
 				pDbGlobal->arrDevices[i]->szName, pDbGlobal->arrDevices[i]->iWdMiss);
 	}
@@ -53,6 +53,23 @@ int32_t sim_tl_wd_thread(thread_t *pThread)
 	stDelay.tv_usec = 1000*(pDbGlobal->iWdInterval % 1000);
 	pGlobal->pWDThread = thread_timer_add(&(pGlobal->stMaintThread), sim_tl_wd_thread, pGlobal, &stDelay); 
 	return 1;
+}
+
+tl_sim_global_t *tl_get_global_sim()
+{
+	return &stSimGlobal;
+}
+
+void sim_get_time_rel(struct timeval *pNow)
+{
+	tl_sim_global_t *pSim = tl_get_global_sim();
+
+	tl_clock_gettime(pNow);
+	pNow->tv_sec -= pSim->stBegin.tv_sec;
+	if(pNow->tv_usec >= pSim->stBegin.tv_usec)
+		pNow->tv_usec -= pSim->stBegin.tv_usec;
+	else
+		pNow->tv_usec += (1000000 - pSim->stBegin.tv_usec);	
 }
 
 int main(int argc, char **argv)
@@ -138,6 +155,8 @@ int main(int argc, char **argv)
 	stWDDelay.tv_sec = pDbGlobal->iWdInterval / 1000;
 	stWDDelay.tv_usec = 1000*(pDbGlobal->iWdInterval % 1000);
 	stSimGlobal.pWDThread = thread_timer_add(&(stSimGlobal.stMaintThread), sim_tl_wd_thread, &stSimGlobal, &stWDDelay);
+
+	tl_clock_gettime(&(stSimGlobal.stBegin));
 
 	if(TL_IS_DEBUG(INIT))
 		tl_log_info("Init OK, run main loop");

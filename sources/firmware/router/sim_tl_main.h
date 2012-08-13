@@ -7,6 +7,7 @@ typedef struct
 {
 	thread_t	*pWDThread;	
 	main_thread_t stMaintThread;
+	struct timeval stBegin;
 }tl_sim_global_t;
 
 typedef struct
@@ -16,9 +17,11 @@ typedef struct
 	uint8_t arrSlaves[TL_MAX_CONTROLERS];
 }tl_sim_controler_t;
 
+tl_sim_global_t *tl_get_global_sim();
 int tl_reply_status(tl_controler_t *pControler, t_can_packet_t *pPacket);
 int32_t sim_tl_com_read(thread_t *pThread);
 tl_controler_t *sim_tl_NewControler(uint8_t iType);
 int sim_tl_controler(uint8_t iAddress, t_can_packet_t *pPacket);
+void sim_get_time_rel(struct timeval *pNow);
 
 #endif /* __TLIGHT_SIM_MAIN_H__ */

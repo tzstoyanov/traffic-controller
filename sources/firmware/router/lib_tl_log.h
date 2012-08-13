@@ -39,6 +39,8 @@ void tl_log_dest_set(tl_log_dest_t  iDest);
 void tl_log_info(const char *format, ... );
 void tl_log_error(const char *format, ... );
 
+int tl_clock_gettime(struct timeval *pNow);
+
 char *tl_status2string(uint8_t iStatus);
 char *tl_type2string(uint8_t iType);
 char *tl_color2string(uint8_t iColor);

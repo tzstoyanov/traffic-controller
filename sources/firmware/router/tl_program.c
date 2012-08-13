@@ -21,7 +21,7 @@ int tl_program_send_cmd(tl_com_t *pPort, char *szCommand, uint8_t iAddress)
 	iRet = tl_com_send_session(pPort, iAddress, TL_COM_LOCAL_VERIFY);
 	if(TL_IS_DEBUG(TX_CMD))
 		tl_log_info("Send Command [%s] to %d, %d bytes", 
-				iAddress, pPort->arrSend, pPort->iSendSize);
+				pPort->arrSend, iAddress, pPort->iSendSize);
 
 	return iRet;
 }
@@ -31,17 +31,20 @@ static int32_t tl_program_delay(thread_t *pThread)
  	tl_program_t *pProgram = (tl_program_t*)pThread->pArg;
 	pProgram->iCurrentStep++;
 	pProgram->pDelayThread = NULL;
-	
-	if(TL_PROGRAM_EXITING == pProgram->iState)
-	{
-		pProgram->iCurrentStep = pProgram->iExitStep;
-	}else if(pProgram->iExitStep == pProgram->iCurrentStep)
+		
+	if((pProgram->iExitStep && ((pProgram->iExitStep-1) == pProgram->iCurrentStep)) ||
+		((0 == pProgram->iExitStep) && pProgram->iCount == pProgram->iCurrentStep))
 	{
 		pProgram->iCurrentStep = pProgram->iLoopStep;	
 		pProgram->iLoopCount++;
-	}else if(pProgram->iCount == pProgram->iCurrentStep)
+		if(TL_IS_DEBUG(PROGRAM))
+			tl_log_info("Program looped at step %d", pProgram->iCurrentStep);				
+	}else if(pProgram->iCount == pProgram->iCurrentStep ||
+			 (TL_PROGRAM_EXITING == pProgram->iState && 0 == pProgram->iExitStep))
 	{
 		pProgram->iState = TL_PROGRAM_EXIT;
+		if(TL_IS_DEBUG(PROGRAM))
+			tl_log_info("Program exit at step %d", pProgram->iCurrentStep);				
 		if(pProgram->fExit)
 			pProgram->fExit(pProgram->pExitCookie);
 		return 1;
@@ -73,23 +76,39 @@ int tl_program_step(tl_program_t *pProgram)
 	if(	NULL != pProgram->pDelayThread || 
 		(TL_PROGRAM_RUNNING != pProgram->iState && TL_PROGRAM_EXITING != pProgram->iState ))
 		return ERROR;
+	if(TL_PROGRAM_EXITING == pProgram->iState && 0 == pProgram->iExitStep)
+	{
+			pProgram->iState = TL_PROGRAM_EXIT;
+			if(TL_IS_DEBUG(PROGRAM))
+				tl_log_info("Program exit at step %d", pProgram->iCurrentStep);			
+			if(pProgram->fExit)
+				pProgram->fExit(pProgram->pExitCookie);
+			return OK;	
+	}	
 	while(TL_INSTR_CMD == pProgram->arrInstructions[pProgram->iCurrentStep].iType)
 	{
+		if(TL_IS_DEBUG(PROGRAM))
+			tl_log_info("Executing program step %d, command", pProgram->iCurrentStep);	
 		iAddress = pProgram->arrInstructions[pProgram->iCurrentStep].u.stCommand.iDeviceId;
-		if(NULL != pGlobalDb->arrDevices[iAddress] && TL_MODULE_ERR_OK == pGlobalDb->arrDevices[iAddress]->iStatus)
+		if(NULL != pGlobalDb->arrDevices[iAddress])
 		{
 			tl_program_send_cmd(&(pGlobalDb->stPort), pProgram->arrInstructions[pProgram->iCurrentStep].u.stCommand.arrCommand, iAddress);
 			tl_update_controler_state(&(pProgram->arrInstructions[pProgram->iCurrentStep]));			
 		}
+
 		pProgram->iCurrentStep++;
-		if(pProgram->iExitStep == pProgram->iCurrentStep)
+		if((pProgram->iExitStep && ((pProgram->iExitStep-1) == pProgram->iCurrentStep)) ||
+			((0 == pProgram->iExitStep) && pProgram->iCount == pProgram->iCurrentStep))
 		{
 			pProgram->iCurrentStep = pProgram->iLoopStep;
 			pProgram->iLoopCount++;
-		}
-		if(pProgram->iCount == pProgram->iCurrentStep)
+			if(TL_IS_DEBUG(PROGRAM))
+				tl_log_info("Program looped at step %d", pProgram->iCurrentStep);			
+		}else if(pProgram->iCount == pProgram->iCurrentStep)
 		{
 			pProgram->iState = TL_PROGRAM_EXIT;
+			if(TL_IS_DEBUG(PROGRAM))
+				tl_log_info("Program exit at step %d", pProgram->iCurrentStep);			
 			if(pProgram->fExit)
 				pProgram->fExit(pProgram->pExitCookie);
 			return OK;
@@ -97,6 +116,9 @@ int tl_program_step(tl_program_t *pProgram)
 	}
 	if(TL_INSTR_DELAY == pProgram->arrInstructions[pProgram->iCurrentStep].iType)
 	{
+		if(TL_IS_DEBUG(PROGRAM))
+			tl_log_info("Executing program step %d, delay %ds", pProgram->iCurrentStep,
+						pProgram->arrInstructions[pProgram->iCurrentStep].u.iDelay);		
 		stDelay.tv_sec = pProgram->arrInstructions[pProgram->iCurrentStep].u.iDelay / 1000;
 		stDelay.tv_usec = 1000 * (pProgram->arrInstructions[pProgram->iCurrentStep].u.iDelay % 1000);	
 		pProgram->pDelayThread = thread_timer_add(&(pGlobal->stMaintThread), tl_program_delay, pProgram, &stDelay);
@@ -123,12 +145,14 @@ int tl_program_exit(tl_program_t *pProgram, tl_program_exit_callback_t fExit, vo
 {
 	pProgram->fExit = fExit;
 	pProgram->pExitCookie = pCookie;
+
+	pProgram->iCurrentStep = pProgram->iExitStep;
 	pProgram->iState = TL_PROGRAM_EXITING;
+			
+	if(TL_IS_DEBUG(PROGRAM))
+		tl_log_info("Exit current program");	
 	if(NULL == pProgram->pDelayThread)
-	{
-		pProgram->iCurrentStep = pProgram->iExitStep;	
-		tl_program_step(pProgram);		
-	}		
+		tl_program_step(pProgram);	
 		
 	return OK;	
 }
@@ -142,6 +166,8 @@ int tl_program_pause(tl_program_t *pProgram)
 	if(pProgram->pDelayThread)
 		thread_cancel(pProgram->pDelayThread);
 	pProgram->pDelayThread = NULL;
+	if(TL_IS_DEBUG(PROGRAM))
+		tl_log_info("Pause current program");	
 	return OK;	
 }
 
@@ -153,6 +179,8 @@ int tl_program_reset(tl_program_t *pProgram)
 	pProgram->iState = TL_PROGRAM_RUNNING;
 	pProgram->iCurrentStep = 0;
 	pProgram->iLoopCount = 0;
+	if(TL_IS_DEBUG(PROGRAM))
+		tl_log_info("Reseting current program");
 	return tl_program_step(pProgram);
 }
 
@@ -162,6 +190,8 @@ void tl_program_replace(void *pCookie)
 
 	tl_program_free(&(pGlobal->pCurrentProgram));
 	pGlobal->pCurrentProgram = (tl_program_t*)pCookie;
+	if(TL_IS_DEBUG(PROGRAM))
+		tl_log_info("Replace current program with %s", pGlobal->pCurrentProgram->szProgramFile);	
 	if(0 == pGlobal->iCritError)
 		tl_program_reset(pGlobal->pCurrentProgram);	
 }

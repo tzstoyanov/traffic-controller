@@ -97,6 +97,9 @@ int sim_set_timer_state(tl_controler_timer_t *pTimer, t_can_packet_t *pPacket)
 	uint8_t iDataLen;
 	uint8_t iColor = (pPacket->arrData[0] & 0x18) >> 3;
 	uint8_t iAction = (pPacket->arrData[0] & 0x07);
+	struct timeval stNow={0,0};
+
+	sim_get_time_rel(&stNow);
 
 	switch(iAction)
 	{
@@ -118,21 +121,27 @@ int sim_set_timer_state(tl_controler_timer_t *pTimer, t_can_packet_t *pPacket)
 	pTimer->stCurrentState.iStateLen = iDataLen;
 	while(iDataLen > 0)
 	{
-		pTimer->stCurrentState.arrState[iDataLen-1] = pPacket->arrData[iDataLen-1];
+		pTimer->stCurrentState.arrState[iDataLen-1] = pPacket->arrData[iDataLen];
 		iDataLen--;
 	}	
 	
-	tl_log_info("%s state changed to [%s]",
-		pTimer->stHead.szName , tl_timerstate2string(&(pTimer->stCurrentState)));
+	tl_log_info("%s state changed to [%s] in %d.%d",
+		pTimer->stHead.szName , tl_timerstate2string(&(pTimer->stCurrentState)),
+		stNow.tv_sec, stNow.tv_usec );
 	
 	return OK;	
 }
 
 int sim_set_lamp_state(tl_controler_lamp_t *pLamp, t_can_packet_t *pPacket)
 {
+	struct timeval stNow={0,0};
+
+	sim_get_time_rel(&stNow);
+
 	pLamp->stCurrentState.iState = pPacket->arrData[0] & 0x0F;
-	tl_log_info("%s state changed to [%s]",
-		pLamp->stHead.szName , tl_lampstate2string(&(pLamp->stCurrentState)));
+	tl_log_info("%s state changed to [%s] in %d.%d",
+		pLamp->stHead.szName , tl_lampstate2string(&(pLamp->stCurrentState)),
+		stNow.tv_sec, stNow.tv_usec );
 	return OK;
 }
 

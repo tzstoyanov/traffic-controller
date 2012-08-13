@@ -22,8 +22,8 @@ int tl_api_reply(int iFd, uint8_t *pData, uint32_t iDataLen)
 int tl_api_stop(int iClient, int iFd, uint32_t iCommand, uint32_t iLen, uint8_t *pData)
 {
  tl_global_t *pGlobal = tl_get_global();
-	tl_send_failsafe();
-	tl_log_info("Enter in FailSafe mode and exit the application");
+	
+	tl_log_info("Going to exit, stop current program");
 	if(pGlobal->pCurrentProgram)
 		tl_program_exit(pGlobal->pCurrentProgram, tl_exit_callback, NULL);
 	else
