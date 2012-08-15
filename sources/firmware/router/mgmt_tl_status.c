@@ -10,7 +10,7 @@
 
 void print_help_status()
 {
-	tl_log_info("\t--status help\t\tShow this status help");	
+	tl_log_info("\t--status help\t\tShow status related help");	
 	tl_log_info("\t--status system\t\tShow current system status");
 	tl_log_info("\t--status module\t\tShow status of all system modules");
 	tl_log_info("\t--status module=NAME\tShow status of requested system module");
@@ -45,23 +45,6 @@ void get_status()
 	}
 }
 
-void print_status_lamp(char *szGaps, tl_lamp_state_t *pLamp)
-{
-	tl_log_info("%sSegments state: 0x%X", szGaps, pLamp->iState);
-}
-
-void print_status_timer(char *szGaps, tl_timer_state_t *pTimer)
-{
-	if(TL_TIMER_ACT_COUNTDOWN == pTimer->iAction)
-		tl_log_info("%sTimer countdown %ds in %s color", szGaps,
-				pTimer->arrState[0], 
-				tl_color2string(pTimer->iColor));
-	if(TL_TIMER_ACT_STATIC == pTimer->iAction)
-		tl_log_info("%sDisplay static segments 0x%X 0x%X 0x%X in %s color", szGaps,
-					pTimer->arrState[0], pTimer->arrState[1], 
-					pTimer->arrState[2], tl_color2string(pTimer->iColor));
-}
-
 void print_status_mod(tl_api_status_mod_t *pModStatus)
 {
 	tl_log_info("\t %s of type %s at adderess %d, [%s]", 
@@ -76,11 +59,11 @@ void print_status_mod(tl_api_status_mod_t *pModStatus)
 				pModStatus->iErrorCount, pModStatus->iWdMiss,
 				pModStatus->iCritical?"Critical":"Not critical");		
 	if(pModStatus->bLastCommandValid)
-		tl_log_info("\t  Last valid command [%s]", pModStatus->arrLastCommand);	
-	if(TL_MODULE_LAMP == pModStatus->iType)
-		print_status_lamp("\t  ", &(pModStatus->u.stLamp));
-	if(TL_MODULE_TIMER == pModStatus->iType)
-		print_status_timer("\t  ", &(pModStatus->u.stTimer));
+		tl_log_info("\t  Last valid command [%s] -> %s", 
+			pModStatus->arrLastCommand, 
+			(TL_MODULE_LAMP == pModStatus->iType ? tl_lampstate2string(&(pModStatus->u.stLamp)) :
+			(TL_MODULE_TIMER == pModStatus->iType ? tl_timerstate2string(&(pModStatus->u.stTimer)) : 
+			"Not Defined")));	
 }
 
 void get_status_mod()
@@ -98,16 +81,17 @@ void get_status_mod()
 	}
 }
 
-void print_cmd_instruction(tl_api_status_instr_t *pInstruction)
+void print_cmd_instruction( int iLine, tl_api_status_instr_t *pInstruction)
 {
-	tl_log_info("\t   [%s]: %s at address %d, ", 
+	tl_log_info("\t   %d. [%s]: %s at address %d -> %s", iLine,
 		pInstruction->stInstruction.u.stCommand.arrCommand,
 		tl_type2string(pInstruction->stInstruction.u.stCommand.iType),
-		pInstruction->stInstruction.u.stCommand.iDeviceId);
-	if(TL_MODULE_LAMP == pInstruction->stInstruction.u.stCommand.iType)
-		print_status_lamp("\t    ", &(pInstruction->stInstruction.u.stCommand.state.stLamp));
-	if(TL_MODULE_TIMER == pInstruction->stInstruction.u.stCommand.iType)
-		print_status_timer("\t    ", &(pInstruction->stInstruction.u.stCommand.state.stTimer));
+		pInstruction->stInstruction.u.stCommand.iDeviceId,
+		(TL_MODULE_LAMP == pInstruction->stInstruction.u.stCommand.iType ? 
+		tl_lampstate2string(&(pInstruction->stInstruction.u.stCommand.state.stLamp)) : 
+		(TL_MODULE_TIMER == pInstruction->stInstruction.u.stCommand.iType ? 
+		tl_timerstate2string(&(pInstruction->stInstruction.u.stCommand.state.stTimer)) : 
+		"Not Defined")));
 }
 
 void print_status_program(tl_api_status_prog_t *pProgram)
@@ -115,8 +99,8 @@ void print_status_program(tl_api_status_prog_t *pProgram)
 	tl_log_info("\t Program %s, %s:", 
 		pProgram->szFileName, tl_programstate2string(pProgram->iState));
 	tl_log_info("\t  Executed %d times, loop step %d, exit step %d, %d instructions:", 
-			pProgram->iLoopCount, pProgram->iLoopStep, 
-			pProgram->iExitStep, pProgram->iInstrCount);
+			pProgram->iLoopCount, pProgram->iLoopStep+1, 
+			pProgram->iExitStep+1, pProgram->iInstrCount);
 }
 
 void get_status_prog()
@@ -147,13 +131,15 @@ void get_status_prog()
 						switch(stInstruction.stInstruction.iType)
 						{	
 							case TL_INSTR_DELAY: 
-								tl_log_info("\t   Delay %d ms", stInstruction.stInstruction.u.iDelay);
+								tl_log_info("\t   %d. Delay %d ms", 
+											j+1, stInstruction.stInstruction.u.iDelay);
 								break;
 							case TL_INSTR_CMD:
-								print_cmd_instruction(&stInstruction);
+								print_cmd_instruction(j+1, &stInstruction);
 								break;
 							default:
-								tl_log_info("\t   Unkown %d", stInstruction.stInstruction.iType);
+								tl_log_info("\t   %d. Unkown %d", 
+											j+1, stInstruction.stInstruction.iType);
 								break;
 						}	
 					}		

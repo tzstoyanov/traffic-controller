@@ -22,7 +22,7 @@ void print_help(char *pPname)
 	tl_log_info("\t-v, --version\t\tVersion information");
 	tl_log_info("\t-c, --config FILENAME\tConfiguration file");
 	tl_log_info("\t-u, --unit\t\tRun unit test");
-	tl_log_info("\t-d, --daemod\t\tRun in daemon mode");	
+	tl_log_info("\t-d, --daemon\t\tRun in daemon mode");	
 	tl_log_info("\t-l, --log DEST\t\tLog destination, DEST is:");
 	tl_print_help_debug_dest();
 	tl_log_info("\t--debug HEX\t\tDebug flags, HEX is bitmask of:");
@@ -92,6 +92,7 @@ int main(int argc, char **argv)
 	stSimGlobal.iApiFd = -1;
 	
 	tl_log_init(TL_LOG2CONSOLE, TL_SIM_LOG_PREFIX);
+	tl_debug_switch_set(TL_DEBUG_LAMP|TL_DEBUG_TIMER);
 	
 	while ( (iOpt = getopt_long( argc, argv, "c:vhuld", stLongOptions, NULL )) != -1 )
 	{
@@ -109,6 +110,7 @@ int main(int argc, char **argv)
 			case 4: /* unit */
 			case 'u':
 				stSimGlobal.iUtest = 1;
+				tl_debug_switch_set(0);
 				break;
 			case 5:
 			case 'l':

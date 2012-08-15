@@ -8,7 +8,7 @@
 
 void print_help_program()
 {
-	tl_log_info("\t--program help\tShow this status help");	
+	tl_log_info("\t--program help\t\tShow program related help");	
 	tl_log_info("\t--program replace=FILENAME\tReplace current program with this one. Specify full path to the new program");
 }
 

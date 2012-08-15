@@ -13,32 +13,89 @@
 #include "lib_tl_client.h"
 #include "sim_tl_main.h"
 
-typedef int (*sim_utest_hook_t)(tl_controler_t *pControler, t_can_packet_t *pPacket);
+typedef int (*sim_utest_hook_t)();
+int sim_tl_utest_start();
 
-int sim_utest_normal(tl_controler_t *pControler, t_can_packet_t *pPacket)
+int sim_utest_normal_init()
 {
 	
 	return OK;
 }
 
+int sim_utest_normal_step()
+{
+
+	return OK;
+}
+
 struct
 {
-	sim_utest_hook_t fHook;
+	sim_utest_hook_t fHookInit;
+	sim_utest_hook_t fHookStep;
 	char *szTestName;
 }arrSimUtest[]={
-	{sim_utest_normal, "Normal operation"}
+	{sim_utest_normal_init, sim_utest_normal_step, "Normal operation"}
 };
+
+int32_t sim_tl_utest_step(thread_t *pThread)
+{
+	struct timeval stDelay;
+	tl_sim_global_t *pGlobal = tl_get_global_sim();
+	tl_global_config_t *pDbGlobal = tl_get_global_dbase();		
+	int iTestsCount = (sizeof(arrSimUtest)/sizeof(arrSimUtest[0]));
+	
+	if(OK != arrSimUtest[pGlobal->iTestInProgress].fHookStep())
+	{
+		pGlobal->iTestInProgress++;
+		if(pGlobal->iTestInProgress >= iTestsCount)	
+		{
+			tl_log_info("All tests executed, exiting");
+			exit(1);
+		}
+		pGlobal->iTestStepDelay = pDbGlobal->iWdInterval;
+		pGlobal->iTestStepCount = 0;
+		sim_tl_utest_start();
+	}
+	else
+	{
+		pGlobal->iTestStepCount++;
+		stDelay.tv_sec = pGlobal->iTestStepDelay / 1000;
+		stDelay.tv_usec = 1000*(pGlobal->iTestStepDelay % 1000);	
+		pGlobal->pUTThread = thread_timer_add(&(pGlobal->stMaintThread), sim_tl_utest_step, NULL, &stDelay);
+	}	
+	return 1;
+}
+
+int sim_tl_utest_start()
+{
+	struct timeval stDelay;
+	tl_sim_global_t *pGlobal = tl_get_global_sim();
+	
+	tl_log_info("");
+	tl_log_info("Starting test [%s]", arrSimUtest[pGlobal->iTestInProgress].szTestName);
+	arrSimUtest[pGlobal->iTestInProgress].fHookInit();
+
+	stDelay.tv_sec = pGlobal->iTestStepDelay / 1000;
+	stDelay.tv_usec = 1000*(pGlobal->iTestStepDelay % 1000);
+	pGlobal->pUTThread = thread_timer_add(&(pGlobal->stMaintThread), sim_tl_utest_step, NULL, &stDelay); 
+	return OK;
+}
 
 int sim_tl_utest_init()
 {	
-//	int i;
 	tl_sim_global_t *pGlobal = tl_get_global_sim();
-//	tl_global_config_t *pDbGlobal = tl_get_global_dbase();
-	
-	if(0 == pGlobal->iUtest)
+	tl_global_config_t *pDbGlobal = tl_get_global_dbase();	
+	int iTestsCount = (sizeof(arrSimUtest)/sizeof(arrSimUtest[0]));
+		
+	if(0 == pGlobal->iUtest || 0 == iTestsCount)
 		return OK;
-	tl_log_info("Start unit test");
-	
+		
+	tl_log_info("Start %d unit tests", iTestsCount);
+	tl_debug_switch_set(0);
+	pGlobal->iTestStepDelay = pDbGlobal->iWdInterval;
+	pGlobal->iTestInProgress=0;
+	pGlobal->iTestStepCount = 0;
+	sim_tl_utest_start();
 	return OK;
 }
 

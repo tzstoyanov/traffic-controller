@@ -210,9 +210,9 @@ void tl_print_help_debug_flag()
 
 void tl_print_help_debug_dest()
 {
-	tl_log_info("\t\t Null\tDo not log");
+	tl_log_info("\t\t Null\t\tDo not log");
 	tl_log_info("\t\t Console\tLog to console, default");
-	tl_log_info("\t\t Syslog\tLog to syslog");
+	tl_log_info("\t\t Syslog\t\tLog to syslog");
 }
 
 

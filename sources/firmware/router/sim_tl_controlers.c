@@ -125,9 +125,10 @@ int sim_set_timer_state(tl_controler_timer_t *pTimer, t_can_packet_t *pPacket)
 	}	
 
 	get_time_rel(&(pSim->stLastStateTime), &stNow);
-	tl_log_info("%s state changed to [%s] in %d.%03d",
-		pTimer->stHead.szName , tl_timerstate2string(&(pTimer->stCurrentState)),
-		stNow.tv_sec, stNow.tv_usec/1000 );
+	if(TL_IS_DEBUG(TIMER))	
+		tl_log_info("%s state changed to [%s] in %d.%03d",
+			pTimer->stHead.szName , tl_timerstate2string(&(pTimer->stCurrentState)),
+			stNow.tv_sec, stNow.tv_usec/1000 );
 	tl_clock_gettime(&(pSim->stLastStateTime));	
 
 	return OK;	
@@ -141,9 +142,10 @@ int sim_set_lamp_state(tl_controler_lamp_t *pLamp, t_can_packet_t *pPacket)
 	pLamp->stCurrentState.iState = pPacket->arrData[0] & 0x0F;
 
 	get_time_rel(&(pSim->stLastStateTime), &stNow);
-	tl_log_info("%s state changed to [%s] in %d.%03d",
-		pLamp->stHead.szName , tl_lampstate2string(&(pLamp->stCurrentState)),
-		stNow.tv_sec, stNow.tv_usec/1000 );
+	if(TL_IS_DEBUG(LAMP))	
+		tl_log_info("%s state changed to [%s] in %d.%03d",
+			pLamp->stHead.szName , tl_lampstate2string(&(pLamp->stCurrentState)),
+			stNow.tv_sec, stNow.tv_usec/1000 );
 	tl_clock_gettime(&(pSim->stLastStateTime));	
 
 	return OK;

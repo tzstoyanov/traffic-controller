@@ -173,7 +173,7 @@ int main(int argc, char **argv)
 	{
 		switch(iOpt)
 		{
-			case 3:
+			case 3:		/* config file */
 			case 'c':
 				if(OK != tl_parse_cfg_file(optarg, pDbGlobal, tl_NewControler))
 				{

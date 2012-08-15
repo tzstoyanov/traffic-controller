@@ -117,7 +117,7 @@ int tl_parse_cfg_file(char *szFileName, tl_global_config_t *pGlobal, tl_new_cont
 	char *szToken;
 	FILE *pFile;
 	char *szString;
-	int iId, iLen;	
+	int iId, iLen, iLineCount=0;	
 	uint8_t iGateId = 0, iType;
 	tl_controler_t *pControler;
 
@@ -129,12 +129,13 @@ int tl_parse_cfg_file(char *szFileName, tl_global_config_t *pGlobal, tl_new_cont
 	    return ERROR;
 	while( fgets((char*)szLine, 250, pFile))
 	{
+		iLineCount++;
 		if('#' == szLine[0] || !isalnum(szLine[0]) )
 			continue;
 		szToken = szLine;
 		szString = NULL;
 		if(TL_IS_DEBUG(CONFIG))
-			tl_log_info("Analyzing line [%s]", szLine);
+			tl_log_info("Analyzing line %d [%s]", iLineCount, szLine);
 		
 		if(OK != tl_get_next_token(&szToken, &szString) || NULL == szString)
 			continue;
@@ -155,7 +156,10 @@ int tl_parse_cfg_file(char *szFileName, tl_global_config_t *pGlobal, tl_new_cont
 		}else if(0 == strncmp(szString, TL_PARAM_COM, strlen(TL_PARAM_COM)))
 		{
 			if(OK != tl_get_next_token(&szToken, &szString) || NULL == szString)
+			{
+				tl_log_info("Error in lne %d [%s]", iLineCount, szLine);
 				continue;
+			}
 			pGlobal->stPort.szPortName = strdup(szString);
 			if(0 == strncmp(szString, TL_COM_SERIAL_PREFIX, strlen(TL_COM_SERIAL_PREFIX)))
 				pGlobal->stPort.iType = TL_COM_SERIAL;
@@ -169,16 +173,25 @@ int tl_parse_cfg_file(char *szFileName, tl_global_config_t *pGlobal, tl_new_cont
 		{
 			szString = NULL;
 			if(OK != tl_get_next_token(&szToken, &szString) || NULL == szString)
+			{
+				tl_log_info("Error in lne %d [%s]", iLineCount, szLine);			
 				continue;
+			}	
 			if(TL_IS_DEBUG(CONFIG))
 				tl_log_info("Got port params [%s], going to parse it", szString);							
 			if(OK != tl_parse_port_cfg(szString, &(pGlobal->stPort)))
+			{
+				tl_log_info("Error in lne %d [%s]", iLineCount, szLine);
 				continue;
+			}
 		}else if(0 == strncmp(szString, TL_PARAM_WD, strlen(TL_PARAM_WD)))
 		{
 			szString = NULL;
 			if(OK != tl_get_next_token(&szToken, &szString) || NULL == szString)
+			{
+				tl_log_info("Error in lne %d [%s]", iLineCount, szLine);
 				continue;
+			}
 			pGlobal->iWdInterval = atoi(szString);	
 			if(TL_IS_DEBUG(CONFIG)) 
 				tl_log_info("Got WD interval [%d]", pGlobal->iWdInterval);
@@ -186,7 +199,10 @@ int tl_parse_cfg_file(char *szFileName, tl_global_config_t *pGlobal, tl_new_cont
 		{
 			szString = NULL;
 			if(OK != tl_get_next_token(&szToken, &szString) || NULL == szString)
+			{
+				tl_log_info("Error in lne %d [%s]", iLineCount, szLine);
 				continue;
+			}
 			pGlobal->iDeadCount = atoi(szString);	
 			if(TL_IS_DEBUG(CONFIG)) 
 				tl_log_info("Got Dead Count [%d]", pGlobal->iDeadCount);						
@@ -194,7 +210,10 @@ int tl_parse_cfg_file(char *szFileName, tl_global_config_t *pGlobal, tl_new_cont
 		{
 			szString = NULL;
 			if(OK != tl_get_next_token(&szToken, &szString) || NULL == szString)
+			{
+				tl_log_info("Error in lne %d [%s]", iLineCount, szLine);
 				continue;
+			}
 			pGlobal->stPort.iTimeout = atoi(szString);
 			if(TL_IS_DEBUG(CONFIG))
 				tl_log_info("Got Timeout interval [%d]", pGlobal->stPort.iTimeout);			
@@ -202,7 +221,10 @@ int tl_parse_cfg_file(char *szFileName, tl_global_config_t *pGlobal, tl_new_cont
 		{
 			szString = NULL;
 			if(OK != tl_get_next_token(&szToken, &szString) || NULL == szString)
+			{
+				tl_log_info("Error in lne %d [%s]", iLineCount, szLine);
 				continue;
+			}
 			if(TL_IS_DEBUG(CONFIG))
 				tl_log_info("Got Module [%s], going to parse it", szString);
 			if(0 == strncmp(szString, TL_PARAM_MASTER, strlen(TL_PARAM_MASTER)))
@@ -216,6 +238,7 @@ int tl_parse_cfg_file(char *szFileName, tl_global_config_t *pGlobal, tl_new_cont
 			else
 			{
 				tl_log_error("Unkown module [%s]", szString);
+				tl_log_info("Error in lne %d [%s]", iLineCount, szLine);
 				continue;
 			}
 			pControler = fNewControler(iType);
@@ -224,6 +247,7 @@ int tl_parse_cfg_file(char *szFileName, tl_global_config_t *pGlobal, tl_new_cont
 			szString = NULL;
 			if(OK != tl_get_next_token(&szToken, &szString) || NULL == szString)
 			{	
+				tl_log_info("Error in lne %d [%s]", iLineCount, szLine);
 				free(pControler);
 				continue;
 			}
@@ -231,6 +255,7 @@ int tl_parse_cfg_file(char *szFileName, tl_global_config_t *pGlobal, tl_new_cont
 			
 			if(OK != tl_get_next_token(&szToken, &szString) || NULL == szString)
 			{	
+				tl_log_info("Error in lne %d [%s]", iLineCount, szLine);
 				free(pControler);
 				continue;
 			}
@@ -238,6 +263,7 @@ int tl_parse_cfg_file(char *szFileName, tl_global_config_t *pGlobal, tl_new_cont
 			if(iId < 1 || iId > TL_MAX_CONTROLERS)
 			{
 				tl_log_error("Invalid controler ID %s (%d)", szString, iId);
+				tl_log_info("Error in lne %d [%s]", iLineCount, szLine);
 				free(pControler);				
 				continue;
 			}
@@ -245,6 +271,7 @@ int tl_parse_cfg_file(char *szFileName, tl_global_config_t *pGlobal, tl_new_cont
 			if(NULL != pGlobal->arrDevices[iId])
 			{	
 				tl_log_error("Controler with ID %d already configured", iId);
+				tl_log_info("Error in lne %d [%s]", iLineCount, szLine);
 				free(pControler);
 				continue;
 			}
@@ -264,8 +291,12 @@ int tl_parse_cfg_file(char *szFileName, tl_global_config_t *pGlobal, tl_new_cont
 				pGlobal->arrDevices[iGateId]->iCritical += pControler->iCritical;
 			if(TL_IS_DEBUG(CONFIG))
 				tl_log_info("The module is attached to gate %d", iGateId);	
-		}else
+		}
+		else
+		{
 			tl_log_error("Unkown parameter %s", szString);
+			tl_log_info("Error in lne %d [%s]", iLineCount, szLine);
+		}	
 	}
 	fclose(pFile);
 	return OK;

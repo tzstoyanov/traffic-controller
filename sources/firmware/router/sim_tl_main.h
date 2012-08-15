@@ -9,6 +9,10 @@ typedef struct
 	main_thread_t stMaintThread;
 	int iApiFd;
 	uint8_t iUtest;
+	uint32_t iTestStepDelay;
+	uint32_t iTestStepCount;
+	uint32_t iTestInProgress;
+	thread_t	*pUTThread;	
 }tl_sim_global_t;
 
 typedef struct
