@@ -102,7 +102,8 @@ void tl_com_flush(tl_com_t *pCom, uint32_t iTimeout)
 		iRet = select (FD_SETSIZE, &stFdSet, NULL, NULL, &stTime);
 		if(iRet <= 0)
 			return;
-		read(pCom->iNetFd, &iBuf, 1);	
+		if( 1 != read(pCom->iNetFd, &iBuf, 1))
+			return;	
 	}while(1);	
 }	
 

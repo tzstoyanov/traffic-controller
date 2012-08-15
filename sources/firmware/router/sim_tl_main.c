@@ -22,13 +22,11 @@ void print_help(char *pPname)
 	tl_log_info("\t-v, --version\t\tVersion information");
 	tl_log_info("\t-c, --config FILENAME\tConfiguration file");
 	tl_log_info("\t-u, --unit\t\tRun unit test");
+	tl_log_info("\t-d, --daemod\t\tRun in daemon mode");	
 	tl_log_info("\t-l, --log DEST\t\tLog destination, DEST is:");
-	tl_log_info("\t-d, --daemod\t\tRun in daemon mode");
-	tl_log_info("\t\t Null\tDo not log");
-	tl_log_info("\t\t Console\tLog to console, default");
-	tl_log_info("\t\t Syslog\tLog to syslog");
+	tl_print_help_debug_dest();
 	tl_log_info("\t--debug HEX\t\tDebug flags, HEX is bitmask of:");
-	tl_print_help_debug();
+	tl_print_help_debug_flag();
 }
 
 int32_t sim_tl_wd_thread(thread_t *pThread)

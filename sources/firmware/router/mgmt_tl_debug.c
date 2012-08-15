@@ -9,12 +9,10 @@
 void print_help_debug()
 {
 	tl_log_info("\t--debug help\tShow this debug help");	
-	tl_log_info("\t--debug flag=HEX\tSet Debug flags, HEX is bitmask of:");
-	tl_print_help_debug();
 	tl_log_info("\t--debug dest=NAME\tSet Debug destination, where NAME can be:");
-	tl_log_info("\t\tNULL\t\tDo not log");
-	tl_log_info("\t\tConsole\t\tLog to console");
-	tl_log_info("\t\tSyslog\t\tLog to Syslog");
+	tl_print_help_debug_dest();
+	tl_log_info("\t--debug flag=HEX\tSet Debug flags, HEX is bitmask of:");
+	tl_print_help_debug_flag();
 }
 
 void process_debug(char *szArgument, char *szValue)

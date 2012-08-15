@@ -192,12 +192,12 @@ int tl_clock_gettime(struct timeval *pNow)
 	return gettimeofday(pNow,NULL);
 }
 
-void tl_print_help_debug()
+void tl_print_help_debug_flag()
 {	
 	tl_log_info("\t\t %08X\tGateway related logs", TL_DEBUG_GATE);
 	tl_log_info("\t\t %08X\tLamp related logs", TL_DEBUG_LAMP);	
 	tl_log_info("\t\t %08X\tTimer related logs", TL_DEBUG_TIMER);	
-	tl_log_info("\t\t %08X\tInit process%", TL_DEBUG_INIT);			
+	tl_log_info("\t\t %08X\tInit process", TL_DEBUG_INIT);			
 	tl_log_info("\t\t %08X\tPackets receive", TL_DEBUG_RX);	
 	tl_log_info("\t\t %08X\tCfg Packets send", TL_DEBUG_TX_CFG);	
 	tl_log_info("\t\t %08X\tCmd Packets send", TL_DEBUG_TX_CMD);	
@@ -207,6 +207,14 @@ void tl_print_help_debug()
 	tl_log_info("\t\t %08X\tConfig files parse", TL_DEBUG_CONFIG);	
 	tl_log_info("\t\t %08X\tManagement requests", TL_DEBUG_API);
 }
+
+void tl_print_help_debug_dest()
+{
+	tl_log_info("\t\t Null\tDo not log");
+	tl_log_info("\t\t Console\tLog to console, default");
+	tl_log_info("\t\t Syslog\tLog to syslog");
+}
+
 
 void get_time_rel(struct timeval *pBegin, struct timeval *pNow)
 {
