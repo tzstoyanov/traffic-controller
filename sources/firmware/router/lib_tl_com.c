@@ -110,7 +110,7 @@ int tl_com_sim_connect(tl_com_t *pCom)
 		return ERROR;	
 	}
 	
-	pCom->iLineSate = TL_COM_IDLE;
+	pCom->iLineState = TL_COM_IDLE;
 		
 	if(TL_IS_DEBUG(INIT))
 		tl_log_info("Com port %s is ready", pCom->szPortName);
@@ -140,7 +140,7 @@ int tl_com_sim_open(tl_com_t *pCom)
 	chmod(stSockAddress.sun_path, 
 		S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IWGRP | S_IXGRP | S_IROTH | S_IWOTH | S_IXOTH);
 	
-	pCom->iLineSate = TL_COM_IDLE;
+	pCom->iLineState = TL_COM_IDLE;
 		
 	if(TL_IS_DEBUG(INIT))
 		tl_log_info("Com port %s is ready", pCom->szPortName);

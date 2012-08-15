@@ -13,7 +13,7 @@
 int tl_program_send_cmd(tl_com_t *pPort, char *szCommand, uint8_t iAddress)
 {
 	int iRet;
-	if(TL_COM_IDLE != pPort->iLineSate)
+	if(TL_COM_IDLE != pPort->iLineState)
 		return ERROR;
 	strncpy(pPort->arrSend, szCommand, TL_MAX_PACKET_SERIAL_SIZE);
 	pPort->arrSend[TL_MAX_PACKET_SERIAL_SIZE-1] = 0;

@@ -17,7 +17,7 @@ int tl_com_pkt_handle(tl_com_t *pCom)
 	t_can_packet_t stPacket;
 	tl_global_config_t *pGlobal = tl_get_global_dbase();
 
-	pCom->iLineSate = TL_COM_IDLE;
+	pCom->iLineState = TL_COM_IDLE;
 	if(OK == tl_command_extract(pCom->arrRecived, pCom->iRcvSize, &stPacket))
 	{
 		if(	TL_ADDRESS_BCAST == stPacket.iAddress || 
@@ -28,7 +28,7 @@ int tl_com_pkt_handle(tl_com_t *pCom)
 				tl_log_info("Recived packet %s from %d", 
 					tl_command2string(stPacket.iCommand), stPacket.arrData[0]);
 			if(TL_CMD_WD_RESPONCE_F == stPacket.iCommand)
-				pCom->iLineSate = TL_COM_PKT_WAIT;
+				pCom->iLineState = TL_COM_PKT_WAIT;
 	 		if(	NULL != pGlobal->arrDevices[stPacket.arrData[0]] && 
 				NULL != pGlobal->arrDevices[stPacket.arrData[0]]->fPktProcess)
 				pGlobal->arrDevices[stPacket.arrData[0]]->fPktProcess(stPacket.arrData[0], &stPacket);
@@ -42,13 +42,13 @@ int tl_com_local_pkt_verify(tl_com_t *pCom)
 	if(pCom->iRcvSize != pCom->iSendSize || 0 != memcmp(pCom->arrSend, pCom->arrRecived, pCom->iRcvSize))
 	{
 		tl_log_error("Local Echo check failed !");
-		pCom->iLineSate = TL_COM_IDLE;
+		pCom->iLineState = TL_COM_CONFLICT;
 		return ERROR;
 	}
-	if(TL_COM_LOCAL_VERIFY_WAIT == pCom->iLineSate)
-		pCom->iLineSate = TL_COM_PKT_WAIT;
+	if(TL_COM_LOCAL_VERIFY_WAIT == pCom->iLineState)
+		pCom->iLineState = TL_COM_PKT_WAIT;
 	else
-		pCom->iLineSate = TL_COM_IDLE;
+		pCom->iLineState = TL_COM_IDLE;
 	return OK;
 }
 
@@ -60,9 +60,9 @@ int tl_com_pakcet_process(tl_com_t *pCom)
 	if(TL_PKT_END == pCom->arrRecived[pCom->iRcvSize-1])
 	{	
 		if(TL_IS_DEBUG(RX))
-			tl_log_info("Line state is %s", tl_serialstate2string(pCom->iLineSate) );
+			tl_log_info("Line state is %s", tl_serialstate2string(pCom->iLineState) );
 	
-		switch(pCom->iLineSate)
+		switch(pCom->iLineState)
 		{
 			case TL_COM_LOCAL_VERIFY:
 			case TL_COM_LOCAL_VERIFY_WAIT:
@@ -74,15 +74,35 @@ int tl_com_pakcet_process(tl_com_t *pCom)
 				break;
 			default:
 				break;
+			iRet = OK;	
 		}
 	}
 	else
 	{
-		pCom->iLineSate = TL_COM_IDLE;
+		pCom->iLineState = TL_COM_IDLE;
 		iRet = ERROR;
 	}
 	return iRet;
 }
+
+void tl_com_flush(tl_com_t *pCom, uint32_t iTimeout)
+{
+	int iRet;
+	fd_set stFdSet;
+	char iBuf;
+	struct timeval stTime;
+	do
+	{
+		stTime.tv_sec = pCom->iTimeout / 1000;
+		stTime.tv_usec = 1000*(pCom->iTimeout % 1000);
+		FD_ZERO(&stFdSet);		
+		FD_SET (pCom->iNetFd, &stFdSet);
+		iRet = select (FD_SETSIZE, &stFdSet, NULL, NULL, &stTime);
+		if(iRet <= 0)
+			return;
+		read(pCom->iNetFd, &iBuf, 1);	
+	}while(1);	
+}	
 
 int tl_com_read_master(tl_com_t *pCom)
 {
@@ -91,7 +111,11 @@ int tl_com_read_master(tl_com_t *pCom)
 	iRet = tl_com_read_packet(pCom);
 	if(OK == iRet)
 		iRet = tl_com_pakcet_process(pCom);
-	
+	if(TL_COM_CONFLICT == pCom->iLineState)
+	{
+		tl_com_flush(pCom, 3*(pCom->iTimeout));
+		pCom->iLineState = TL_COM_IDLE;
+	}
 	pCom->iRcvSize = 0;
 	pCom->arrRecived[0]=0;
 
@@ -107,7 +131,7 @@ int32_t tl_com_read(thread_t *pThread)
 	
 	if(TL_IS_DEBUG(RX))
 		tl_log_info("Recived unexpected data from %s, line state is %d", 
-				pCom->szPortName, pCom->iLineSate );
+				pCom->szPortName, pCom->iLineState );
 				
 	tl_com_read_master(pCom);
 	
@@ -146,16 +170,16 @@ int tl_com_send_session(tl_com_t *pCom, uint8_t iAddress, uint8_t iNextState)
 	if(OK != tl_com_send(pCom))
 	{
 		tl_controler_timeout(iAddress);
-		pCom->iLineSate = TL_COM_IDLE;	
+		pCom->iLineState = TL_COM_IDLE;	
 		return ERROR;
 	}
-	pCom->iLineSate = iNextState;
-	while(TL_COM_IDLE != pCom->iLineSate)
+	pCom->iLineState = iNextState;
+	while(TL_COM_IDLE != pCom->iLineState)
 	{
 		if(OK != tl_com_read_master(pCom))
 		{
 			tl_controler_timeout(iAddress);
-			pCom->iLineSate = TL_COM_IDLE;
+			pCom->iLineState = TL_COM_IDLE;
 			return ERROR;	
 		}	
 	}
@@ -170,7 +194,7 @@ int tl_com_port_serial_open(tl_com_t *pCom)
 	pCom->iNetFd = open(pCom->szPortName, O_RDWR | O_NOCTTY | O_NDELAY);
 	if(-1 == pCom->iNetFd)
 	{
-		tl_log_error("Failed to open com %s chanel, errno %d (%s)", 
+		tl_log_error("Failed to open com %s channel, errno %d (%s)", 
 			pCom->szPortName, errno, strerror(errno));
 		return ERROR;
 	}
@@ -204,7 +228,7 @@ int tl_com_port_serial_open(tl_com_t *pCom)
 		return ERROR;
 	}
 
-	pCom->iLineSate = TL_COM_IDLE;
+	pCom->iLineState = TL_COM_IDLE;
 
 	if(TL_IS_DEBUG(INIT))
 		tl_log_info("Com port %s is ready", pCom->szPortName);

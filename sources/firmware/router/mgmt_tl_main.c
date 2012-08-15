@@ -4,6 +4,7 @@
 #include "tl_packets_api.h"
 #include "tl_api.h"
 #include "lib_tl_log.h"
+#include "lib_tl_client.h"
 #include "mgmt_tl_main.h"
 
 int iClientFd=-1;
