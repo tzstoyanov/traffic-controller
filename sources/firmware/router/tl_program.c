@@ -31,11 +31,10 @@ static int32_t tl_program_delay(thread_t *pThread)
  	tl_program_t *pProgram = (tl_program_t*)pThread->pArg;
 	pProgram->iCurrentStep++;
 	pProgram->pDelayThread = NULL;
-		
-	if((pProgram->iExitStep && ((pProgram->iExitStep-1) == pProgram->iCurrentStep)) ||
-		((0 == pProgram->iExitStep) && pProgram->iCount == pProgram->iCurrentStep))
+	
+	if( TL_PROGRAM_EXITING != pProgram->iState && pProgram->iLoopEnd == pProgram->iCurrentStep)	
 	{
-		pProgram->iCurrentStep = pProgram->iLoopStep;	
+		pProgram->iCurrentStep = pProgram->iLoopStep;
 		pProgram->iLoopCount++;
 		if(TL_IS_DEBUG(PROGRAM))
 			tl_log_info("Program looped at step %d", pProgram->iCurrentStep);				
@@ -97,8 +96,7 @@ int tl_program_step(tl_program_t *pProgram)
 		}
 
 		pProgram->iCurrentStep++;
-		if((pProgram->iExitStep && ((pProgram->iExitStep-1) == pProgram->iCurrentStep)) ||
-			((0 == pProgram->iExitStep) && pProgram->iCount == pProgram->iCurrentStep))
+		if( TL_PROGRAM_EXITING != pProgram->iState && pProgram->iLoopEnd == pProgram->iCurrentStep)
 		{
 			pProgram->iCurrentStep = pProgram->iLoopStep;
 			pProgram->iLoopCount++;
@@ -145,8 +143,9 @@ int tl_program_exit(tl_program_t *pProgram, tl_program_exit_callback_t fExit, vo
 {
 	pProgram->fExit = fExit;
 	pProgram->pExitCookie = pCookie;
-
-	pProgram->iCurrentStep = pProgram->iExitStep;
+	
+	if(pProgram->iExitStep)
+		pProgram->iCurrentStep = pProgram->iExitStep-1;
 	pProgram->iState = TL_PROGRAM_EXITING;
 			
 	if(TL_IS_DEBUG(PROGRAM))

@@ -22,6 +22,7 @@ typedef struct
 	uint32_t iCount;
 	uint32_t iCurrentStep;
 	uint32_t iLoopStep;
+	uint32_t iLoopEnd;
 	uint32_t iExitStep;
 	uint32_t iLoopCount;
 	thread_t *pDelayThread;

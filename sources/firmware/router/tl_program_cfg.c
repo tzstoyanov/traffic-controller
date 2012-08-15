@@ -242,6 +242,10 @@ int tl_parse_prog_file(char *szFileName, tl_program_t **ppProgram)
 	}
 	(*ppProgram)->iCount = iCount;
 	(*ppProgram)->iState = TL_PROGRAM_PAUSE;
+	if((*ppProgram)->iExitStep)
+		(*ppProgram)->iLoopEnd = (*ppProgram)->iExitStep;
+	else	
+		(*ppProgram)->iLoopEnd = (*ppProgram)->iCount;
 	(*ppProgram)->iCurrentStep = 0;
 	(*ppProgram)->iLoopCount = 0;
 	fclose(pFile);
