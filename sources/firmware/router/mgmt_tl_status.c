@@ -40,6 +40,7 @@ void get_status()
 			(TL_LOG2NULL==stStatus.iLogDest?"none":
 			(TL_LOG2CONSOLE==stStatus.iLogDest?"console":
 			(TL_LOG2SYSLOG==stStatus.iLogDest?"syslog":"uknown"))));
+		tl_log_info("System Uptime: %ds", stStatus.stUpTime.tv_sec);	
 	}
 }
 

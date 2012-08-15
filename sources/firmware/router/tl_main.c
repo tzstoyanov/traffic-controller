@@ -24,20 +24,9 @@ void print_help(char *pPname)
 	tl_log_info("\t-l, --log DEST\t\tLog destination, DEST is:");
 	tl_log_info("\t\t Null\tDo not log");
 	tl_log_info("\t\t Console\tLog to console, default");
-	tl_log_info("\t\t Syslog\tLog to syslog");	
-	tl_log_info("\t--debug HEX\t\tDebug flags, HEX is bitmask of:");	
-	tl_log_info("\t\t %08X\tGateway related logs", TL_DEBUG_GATE);
-	tl_log_info("\t\t %08X\tLamp related logs", TL_DEBUG_LAMP);	
-	tl_log_info("\t\t %08X\tTimer related logs", TL_DEBUG_TIMER);	
-	tl_log_info("\t\t %08X\tInit process%", TL_DEBUG_INIT);			
-	tl_log_info("\t\t %08X\tPackets receive", TL_DEBUG_RX);	
-	tl_log_info("\t\t %08X\tCfg Packets send", TL_DEBUG_TX_CFG);	
-	tl_log_info("\t\t %08X\tCmd Packets send", TL_DEBUG_TX_CMD);	
-	tl_log_info("\t\t %08X\tRequest Packets send", TL_DEBUG_TX_RQST);		
-	tl_log_info("\t\t %08X\tDump Packets contents", TL_DEBUG_PKT_DUMP);
-	tl_log_info("\t\t %08X\tProgram execution", TL_DEBUG_PROGRAM);	
-	tl_log_info("\t\t %08X\tConfig files parse", TL_DEBUG_CONFIG);	
-	tl_log_info("\t\t %08X\tManagement requests", TL_DEBUG_API);
+	tl_log_info("\t\t Syslog\tLog to syslog");
+	tl_log_info("\t--debug HEX\t\tDebug flags, HEX is bitmask of:");
+	tl_print_help_debug();
 }
 
 void tl_check_system_status()
@@ -141,24 +130,6 @@ int32_t tl_wd_thread(thread_t *pThread)
 	stDelay.tv_usec = 1000*(pDbGlobal->iWdInterval % 1000);
 	pGlobal->pWDThread = thread_timer_add(&(pGlobal->stMaintThread), tl_wd_thread, pDbGlobal, &stDelay); 
 	return 1;
-}
-
-void tl_daemonzie(int iSem)
-{
-	pid_t pid, sid;
-
-	pid = fork();
-	if(pid < 0)
-		exit(1);
-	if(pid > 0)
-	{
-		sem_take(iSem);
-		sem_delete(iSem);
-		exit(0);
-	}	
-	sid = setsid();
-	if(sid < 0)
-		exit(1);
 }
 
 void tl_mask_signals()
@@ -279,6 +250,8 @@ int main(int argc, char **argv)
 	stWDDelay.tv_sec = pDbGlobal->iWdInterval / 1000;
 	stWDDelay.tv_usec = 1000*(pDbGlobal->iWdInterval % 1000);
 	stGlobal.pWDThread = thread_timer_add(&(stGlobal.stMaintThread), tl_wd_thread, pDbGlobal, &stWDDelay);
+
+	tl_clock_gettime(&(pDbGlobal->stStartTime));
 
 	if(iSem != -1)
 		sem_give(iSem);

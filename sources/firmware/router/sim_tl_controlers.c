@@ -99,7 +99,7 @@ int sim_set_timer_state(tl_controler_timer_t *pTimer, t_can_packet_t *pPacket)
 	uint8_t iAction = (pPacket->arrData[0] & 0x07);
 	struct timeval stNow={0,0};
 
-	sim_get_time_rel(&stNow);
+	get_time_rel(&stNow);
 
 	switch(iAction)
 	{
@@ -136,7 +136,7 @@ int sim_set_lamp_state(tl_controler_lamp_t *pLamp, t_can_packet_t *pPacket)
 {
 	struct timeval stNow={0,0};
 
-	sim_get_time_rel(&stNow);
+	get_time_rel(&stNow);
 
 	pLamp->stCurrentState.iState = pPacket->arrData[0] & 0x0F;
 	tl_log_info("%s state changed to [%s] in %d.%d",

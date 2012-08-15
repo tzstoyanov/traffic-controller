@@ -1,5 +1,6 @@
 #include "os_linux.h"
 #include "linux_thread.h"
+#include "linux_sem.h"
 #include "tl_types.h"
 #include "tl_packets_api.h"
 #include "tl_serial_api.h"
@@ -22,9 +23,12 @@ void print_help(char *pPname)
 	tl_log_info("\t-c, --config FILENAME\tConfiguration file");
 	tl_log_info("\t-u, --unit\t\tRun unit test");
 	tl_log_info("\t-l, --log DEST\t\tLog destination, DEST is:");
+	tl_log_info("\t-d, --daemod\t\tRun in daemon mode");
 	tl_log_info("\t\t Null\tDo not log");
 	tl_log_info("\t\t Console\tLog to console, default");
 	tl_log_info("\t\t Syslog\tLog to syslog");
+	tl_log_info("\t--debug HEX\t\tDebug flags, HEX is bitmask of:");
+	tl_print_help_debug();
 }
 
 int32_t sim_tl_wd_thread(thread_t *pThread)
@@ -68,21 +72,9 @@ int sim_get_client_fd()
 	return pGlobal->iApiFd;
 }
 
-void sim_get_time_rel(struct timeval *pNow)
-{
-	tl_sim_global_t *pSim = tl_get_global_sim();
-
-	tl_clock_gettime(pNow);
-	pNow->tv_sec -= pSim->stBegin.tv_sec;
-	if(pNow->tv_usec >= pSim->stBegin.tv_usec)
-		pNow->tv_usec -= pSim->stBegin.tv_usec;
-	else
-		pNow->tv_usec += (1000000 - pSim->stBegin.tv_usec);	
-}
-
 int main(int argc, char **argv)
 {
-	int iOpt, iCfg = 0;
+	int iOpt, iCfg = 0, iDaemon=0, iSem=-1;
 	struct timeval stWDDelay;
 	tl_global_config_t *pDbGlobal = tl_get_global_dbase();	
 	struct option 	stLongOptions[] =
@@ -93,6 +85,7 @@ int main(int argc, char **argv)
 						{"utest", 0, 0, 4},
 						{"log", 1, 0, 5},
 						{"debug", 1, 0, 6},
+						{"daemon", 0, 0, 7},
 						{0, 0, 0, 0}
 					};
 
@@ -102,7 +95,7 @@ int main(int argc, char **argv)
 	
 	tl_log_init(TL_LOG2CONSOLE, TL_SIM_LOG_PREFIX);
 	
-	while ( (iOpt = getopt_long( argc, argv, "c:vhul", stLongOptions, NULL )) != -1 )
+	while ( (iOpt = getopt_long( argc, argv, "c:vhuld", stLongOptions, NULL )) != -1 )
 	{
 		switch(iOpt)
 		{
@@ -130,7 +123,11 @@ int main(int argc, char **argv)
 				break;	
 			case 6: /* debug */
 				tl_debug_switch_set(strtol(optarg, NULL, 16));
-				break;				
+				break;
+			case 'd':
+			case 7: /* daemon */
+				iDaemon = 1;
+				break;	
 			case 2:
 			case 'v':
 				print_help(argv[0]);
@@ -153,10 +150,20 @@ int main(int argc, char **argv)
 		tl_log_error("No local socket specified in config file");
 		exit(1);
 	}
+	if(iDaemon)
+	{
+		iSem = sem_create(SEM_EMPTY);
+		if(iSem < 0)
+			exit(1);
+		tl_daemonzie(iSem);
+	}
+
 	thread_main_init(&(stSimGlobal.stMaintThread));
 	if(OK != tl_com_sim_connect(&(pDbGlobal->stPort)))
 	{
 		tl_log_error("Failed to open socket to main program");
+		if(iSem != -1)
+			sem_give(iSem);		
 		exit(1);
 	}
 	
@@ -170,7 +177,10 @@ int main(int argc, char **argv)
 	stSimGlobal.iApiFd = tl_mgmt_connect();
 	sim_tl_utest_init();
 	
-	tl_clock_gettime(&(stSimGlobal.stBegin));
+	tl_clock_gettime(&(pDbGlobal->stStartTime));
+
+	if(iSem != -1)
+		sem_give(iSem);
 
 	if(TL_IS_DEBUG(INIT))
 		tl_log_info("Init OK, run main loop");

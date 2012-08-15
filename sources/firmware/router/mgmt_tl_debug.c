@@ -10,18 +10,7 @@ void print_help_debug()
 {
 	tl_log_info("\t--debug help\tShow this debug help");	
 	tl_log_info("\t--debug flag=HEX\tSet Debug flags, HEX is bitmask of:");
-	tl_log_info("\t\t %08X\tGateway related logs", TL_DEBUG_GATE);
-	tl_log_info("\t\t %08X\tLamp related logs", TL_DEBUG_LAMP);	
-	tl_log_info("\t\t %08X\tTimer related logs", TL_DEBUG_TIMER);	
-	tl_log_info("\t\t %08X\tInit process", TL_DEBUG_INIT);			
-	tl_log_info("\t\t %08X\tPackets receive", TL_DEBUG_RX);	
-	tl_log_info("\t\t %08X\tCfg Packets send", TL_DEBUG_TX_CFG);	
-	tl_log_info("\t\t %08X\tCmd Packets send", TL_DEBUG_TX_CMD);	
-	tl_log_info("\t\t %08X\tRequest Packets send", TL_DEBUG_TX_RQST);		
-	tl_log_info("\t\t %08X\tDump Packets contents", TL_DEBUG_PKT_DUMP);	
-	tl_log_info("\t\t %08X\tProgram execution", TL_DEBUG_PROGRAM);		
-	tl_log_info("\t\t %08X\tConfig files parse", TL_DEBUG_CONFIG);	
-	tl_log_info("\t\t %08X\tManagement requests", TL_DEBUG_API);	
+	tl_print_help_debug();
 	tl_log_info("\t--debug dest=NAME\tSet Debug destination, where NAME can be:");
 	tl_log_info("\t\tNULL\t\tDo not log");
 	tl_log_info("\t\tConsole\t\tLog to console");

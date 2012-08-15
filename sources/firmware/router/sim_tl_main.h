@@ -7,7 +7,6 @@ typedef struct
 {
 	thread_t	*pWDThread;	
 	main_thread_t stMaintThread;
-	struct timeval stBegin;
 	int iApiFd;
 	uint8_t iUtest;
 }tl_sim_global_t;

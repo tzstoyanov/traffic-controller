@@ -43,6 +43,7 @@ struct tl_api_status_type
 	uint8_t iDeviceError;
 	uint32_t iCritError;
 	uint32_t iWarning;
+	struct timeval stUpTime;
 }__attribute__((__packed__));
 
 typedef struct tl_api_status_mod_type tl_api_status_mod_t;

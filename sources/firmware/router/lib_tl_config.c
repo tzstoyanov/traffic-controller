@@ -1,5 +1,6 @@
 #include "os_linux.h"
 #include "linux_thread.h"
+#include "linux_sem.h"
 #include "tl_types.h"
 #include "tl_packets_api.h"
 #include "tl_serial_api.h"
@@ -270,4 +271,33 @@ int tl_parse_cfg_file(char *szFileName, tl_global_config_t *pGlobal, tl_new_cont
 	return OK;
 }
 
+void get_time_rel(struct timeval *pNow)
+{
+	tl_global_config_t *pDbGlobal = tl_get_global_dbase();	
+
+	tl_clock_gettime(pNow);
+	pNow->tv_sec -= pDbGlobal->stStartTime.tv_sec;
+	if(pNow->tv_usec >= pDbGlobal->stStartTime.tv_usec)
+		pNow->tv_usec -= pDbGlobal->stStartTime.tv_usec;
+	else
+		pNow->tv_usec += (1000000 - pDbGlobal->stStartTime.tv_usec);	
+}
+
+void tl_daemonzie(int iSem)
+{
+	pid_t pid, sid;
+
+	pid = fork();
+	if(pid < 0)
+		exit(1);
+	if(pid > 0)
+	{
+		sem_take(iSem);
+		sem_delete(iSem);
+		exit(0);
+	}	
+	sid = setsid();
+	if(sid < 0)
+		exit(1);
+}
 

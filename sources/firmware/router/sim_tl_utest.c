@@ -31,9 +31,9 @@ struct
 
 int sim_tl_utest_init()
 {	
-	int i;
+//	int i;
 	tl_sim_global_t *pGlobal = tl_get_global_sim();
-	tl_global_config_t *pDbGlobal = tl_get_global_dbase();
+//	tl_global_config_t *pDbGlobal = tl_get_global_dbase();
 	
 	if(0 == pGlobal->iUtest)
 		return OK;
