@@ -4,6 +4,7 @@
 typedef enum
 {
 	TL_COM_IDLE = 0,
+	TL_COM_CONFLICT,
 	TL_COM_LOCAL_VERIFY,
 	TL_COM_LOCAL_VERIFY_WAIT,	
 	TL_COM_PKT_WAIT
@@ -24,7 +25,7 @@ typedef struct
 	int32_t	iTimeout;
 	int	iNetFd;
 	int iAccFd;
-	tl_com_state_t iLineSate;
+	tl_com_state_t iLineState;
 	char arrSend[TL_MAX_PACKET_SERIAL_SIZE];
 	uint8_t	iSendSize;
 	char arrRecived[TL_MAX_PACKET_SERIAL_SIZE];

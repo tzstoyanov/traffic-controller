@@ -9,23 +9,22 @@
 #include "lib_tl_config.h"
 #include "lib_tl_com.h"
 #include "lib_tl_packets.h"
+#include "lib_tl_client.h"
 #include "sim_tl_main.h"
 
 tl_sim_global_t stSimGlobal;
 
 void print_help(char *pPname)
 {
-	printf("Usage: %s [OPIONS]%s", pPname, TL_LOG_NEWLINE);
-	printf("\t-h, --help\t\tHelp%s", TL_LOG_NEWLINE);
-	printf("\t-v, --version\t\tVersion information%s", TL_LOG_NEWLINE);
-	printf("\t-c, --config FILENAME\tConfiguration file%s", TL_LOG_NEWLINE);
-	printf("\t-u, --unit\t\tRun unit test%s", TL_LOG_NEWLINE);
-	printf("\t-l, --log=DEST\t\tLog destination, DEST is:%s", TL_LOG_NEWLINE);
-	printf("\t\t Null\tDo not log%s", TL_LOG_NEWLINE);
-	printf("\t\t Console\tLog to console, default%s", TL_LOG_NEWLINE);
-	printf("\t\t Syslog\tLog to syslog%s", TL_LOG_NEWLINE);
-	
-	fflush(stdout);
+	tl_log_info("Usage: %s [OPIONS]", pPname);
+	tl_log_info("\t-h, --help\t\tHelp");
+	tl_log_info("\t-v, --version\t\tVersion information");
+	tl_log_info("\t-c, --config FILENAME\tConfiguration file");
+	tl_log_info("\t-u, --unit\t\tRun unit test");
+	tl_log_info("\t-l, --log DEST\t\tLog destination, DEST is:");
+	tl_log_info("\t\t Null\tDo not log");
+	tl_log_info("\t\t Console\tLog to console, default");
+	tl_log_info("\t\t Syslog\tLog to syslog");
 }
 
 int32_t sim_tl_wd_thread(thread_t *pThread)
@@ -60,6 +59,15 @@ tl_sim_global_t *tl_get_global_sim()
 	return &stSimGlobal;
 }
 
+int sim_get_client_fd()
+{
+	tl_sim_global_t *pGlobal = tl_get_global_sim();
+	if(-1 != pGlobal->iApiFd)
+		return pGlobal->iApiFd;
+	pGlobal->iApiFd = tl_mgmt_connect();	 
+	return pGlobal->iApiFd;
+}
+
 void sim_get_time_rel(struct timeval *pNow)
 {
 	tl_sim_global_t *pSim = tl_get_global_sim();
@@ -90,6 +98,7 @@ int main(int argc, char **argv)
 
 	bzero(&stSimGlobal, sizeof(tl_sim_global_t));
 	bzero(pDbGlobal, sizeof(tl_global_config_t));
+	stSimGlobal.iApiFd = -1;
 	
 	tl_log_init(TL_LOG2CONSOLE, TL_SIM_LOG_PREFIX);
 	
@@ -108,6 +117,7 @@ int main(int argc, char **argv)
 				break;
 			case 4: /* unit */
 			case 'u':
+				stSimGlobal.iUtest = 1;
 				break;
 			case 5:
 			case 'l':
@@ -149,6 +159,7 @@ int main(int argc, char **argv)
 		tl_log_error("Failed to open socket to main program");
 		exit(1);
 	}
+	
 	pDbGlobal->stPort.pReadThread  = 
 		thread_read_add(&(stSimGlobal.stMaintThread), sim_tl_com_read, &(pDbGlobal->stPort), pDbGlobal->stPort.iNetFd);
 
@@ -156,6 +167,9 @@ int main(int argc, char **argv)
 	stWDDelay.tv_usec = 1000*(pDbGlobal->iWdInterval % 1000);
 	stSimGlobal.pWDThread = thread_timer_add(&(stSimGlobal.stMaintThread), sim_tl_wd_thread, &stSimGlobal, &stWDDelay);
 
+	stSimGlobal.iApiFd = tl_mgmt_connect();
+	sim_tl_utest_init();
+	
 	tl_clock_gettime(&(stSimGlobal.stBegin));
 
 	if(TL_IS_DEBUG(INIT))

@@ -16,26 +16,28 @@ static tl_global_t stGlobal;
 
 void print_help(char *pPname)
 {
-	printf("Usage: %s [OPIONS]%s", pPname, TL_LOG_NEWLINE);
-	printf("\t-h, --help\t\tHelp%s", TL_LOG_NEWLINE);
-	printf("\t-v, --version\t\tVersion information%s", TL_LOG_NEWLINE);
-	printf("\t-c, --config FILENAME\tConfiguration file%s", TL_LOG_NEWLINE);
-	printf("\t-d, --daemod\t\tRun in daemon mode%s", TL_LOG_NEWLINE);
-	printf("\t--debug HEX\t\tDebug flags, HEX is bitmask of:%s", TL_LOG_NEWLINE);	
-	printf("\t\t %08X\tGateway related logs%s", TL_DEBUG_GATE, TL_LOG_NEWLINE);
-	printf("\t\t %08X\tLamp related logs%s", TL_DEBUG_LAMP, TL_LOG_NEWLINE);	
-	printf("\t\t %08X\tTimer related logs%s", TL_DEBUG_TIMER, TL_LOG_NEWLINE);	
-	printf("\t\t %08X\tInit process%s", TL_DEBUG_INIT, TL_LOG_NEWLINE);			
-	printf("\t\t %08X\tPackets receive%s", TL_DEBUG_RX, TL_LOG_NEWLINE);	
-	printf("\t\t %08X\tCfg Packets send%s", TL_DEBUG_TX_CFG, TL_LOG_NEWLINE);	
-	printf("\t\t %08X\tCmd Packets send%s", TL_DEBUG_TX_CMD, TL_LOG_NEWLINE);	
-	printf("\t\t %08X\tRequest Packets send%s", TL_DEBUG_TX_RQST, TL_LOG_NEWLINE);		
-	printf("\t\t %08X\tDump Packets contents%s", TL_DEBUG_PKT_DUMP, TL_LOG_NEWLINE);
-	printf("\t\t %08X\tProgram execution%s", TL_DEBUG_PROGRAM, TL_LOG_NEWLINE);	
-	printf("\t\t %08X\tConfig files parse%s", TL_DEBUG_CONFIG, TL_LOG_NEWLINE);	
-	printf("\t\t %08X\tManagement requests%s", TL_DEBUG_API, TL_LOG_NEWLINE);
-	
-	fflush(stdout);
+	tl_log_info("Usage: %s [OPIONS]", pPname);
+	tl_log_info("\t-h, --help\t\tHelp");
+	tl_log_info("\t-v, --version\t\tVersion information");
+	tl_log_info("\t-c, --config FILENAME\tConfiguration file");
+	tl_log_info("\t-d, --daemod\t\tRun in daemon mode");
+	tl_log_info("\t-l, --log DEST\t\tLog destination, DEST is:");
+	tl_log_info("\t\t Null\tDo not log");
+	tl_log_info("\t\t Console\tLog to console, default");
+	tl_log_info("\t\t Syslog\tLog to syslog");	
+	tl_log_info("\t--debug HEX\t\tDebug flags, HEX is bitmask of:");	
+	tl_log_info("\t\t %08X\tGateway related logs", TL_DEBUG_GATE);
+	tl_log_info("\t\t %08X\tLamp related logs", TL_DEBUG_LAMP);	
+	tl_log_info("\t\t %08X\tTimer related logs", TL_DEBUG_TIMER);	
+	tl_log_info("\t\t %08X\tInit process%", TL_DEBUG_INIT);			
+	tl_log_info("\t\t %08X\tPackets receive", TL_DEBUG_RX);	
+	tl_log_info("\t\t %08X\tCfg Packets send", TL_DEBUG_TX_CFG);	
+	tl_log_info("\t\t %08X\tCmd Packets send", TL_DEBUG_TX_CMD);	
+	tl_log_info("\t\t %08X\tRequest Packets send", TL_DEBUG_TX_RQST);		
+	tl_log_info("\t\t %08X\tDump Packets contents", TL_DEBUG_PKT_DUMP);
+	tl_log_info("\t\t %08X\tProgram execution", TL_DEBUG_PROGRAM);	
+	tl_log_info("\t\t %08X\tConfig files parse", TL_DEBUG_CONFIG);	
+	tl_log_info("\t\t %08X\tManagement requests", TL_DEBUG_API);
 }
 
 void tl_check_system_status()
@@ -186,6 +188,7 @@ int main(int argc, char **argv)
 						{"config", 1, 0, 3},
 						{"debug", 1, 0, 4},
 						{"daemon", 0, 0, 5},
+						{"log", 1, 0, 6},
 						{0, 0, 0, 0}
 					};
 
@@ -197,7 +200,7 @@ int main(int argc, char **argv)
 
 	tl_log_init(TL_LOG2CONSOLE, TL_LOG_PREFIX);
 	
-	while ( (iOpt = getopt_long( argc, argv, "c:vhd", stLongOptions, NULL )) != -1 )
+	while ( (iOpt = getopt_long( argc, argv, "c:vhdl:", stLongOptions, NULL )) != -1 )
 	{
 		switch(iOpt)
 		{
@@ -216,7 +219,16 @@ int main(int argc, char **argv)
 			case 5:
 			case 'd': /* daemon mode */
 				iDaemon = 1;
-				break;		
+				break;
+			case 6: /* log destination */
+			case 'l':
+				if(0 == strncmp(optarg, "NULL", strlen("NULL")))
+					tl_log_dest_set(TL_LOG2NULL);
+				else if(0 == strncmp(optarg, "Syslog", strlen("Syslog")))	
+					tl_log_dest_set(TL_LOG2SYSLOG);
+				else
+					tl_log_dest_set(TL_LOG2CONSOLE);	
+				break;							
 			case 2:
 			case 'v':
 				print_help(argv[0]);

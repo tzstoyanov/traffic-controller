@@ -12,6 +12,7 @@ uint32_t iTlightDebugSwitch = 0;
 int tl_log_init(tl_log_dest_t  iDest, char *szLogPrefix)
 {
 	openlog(szLogPrefix, LOG_CONS, LOG_LOCAL3);
+	iTlLogDestination = iDest;
 	return OK;
 }
 
@@ -110,6 +111,7 @@ char *tl_serialstate2string(tl_com_state_t iState)
 	switch(iState)
 	{	
 		case TL_COM_IDLE: 				return "Idle";
+		case TL_COM_CONFLICT: 			return "Conflict";
 		case TL_COM_LOCAL_VERIFY:		return "Verify";
 		case TL_COM_LOCAL_VERIFY_WAIT:	return "Verify Wait";	
 		case TL_COM_PKT_WAIT:			return "Wait";

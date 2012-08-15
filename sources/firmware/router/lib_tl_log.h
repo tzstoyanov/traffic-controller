@@ -29,8 +29,6 @@ extern tl_log_dest_t iTlLogDestination;
 #define TL_DEBUG_CONFIG		0x0800
 #define TL_DEBUG_API		0x1000
 
-#define TL_LOG_NEWLINE	"\n\r"
-
 #define TL_IS_DEBUG(x) (iTlightDebugSwitch & TL_DEBUG_ ## x)
 
 int tl_log_init(tl_log_dest_t  iDest, char *szPrefix);

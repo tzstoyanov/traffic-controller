@@ -39,12 +39,14 @@ APP_FILES = linux_thread linux_sem tl_main tl_controlers \
 			lib_tl_log lib_tl_config lib_tl_com lib_tl_packets
 			
 CFG_NAME = mgmt_tlight
-CFG_FILES = lib_tl_log mgmt_tl_main mgmt_tl_client \
+CFG_FILES = lib_tl_log mgmt_tl_main lib_tl_client \
 			mgmt_tl_debug mgmt_tl_status mgmt_tl_program
 
 SIM_NAME = sim_tlight
-SIM_FILES = linux_thread sim_tl_main sim_tl_packets sim_tl_controlers \
-			 lib_tl_log lib_tl_config lib_tl_com lib_tl_packets
+SIM_FILES = linux_thread sim_tl_main sim_tl_packets \
+			sim_tl_controlers sim_tl_feedback sim_tl_utest\
+			lib_tl_log lib_tl_config lib_tl_com \
+			lib_tl_packets lib_tl_client
 			
 APP_OBJ = $(addsuffix .o, $(APP_FILES))
 CFG_OBJ = $(addsuffix .o, $(CFG_FILES)) 

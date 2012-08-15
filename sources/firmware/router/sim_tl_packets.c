@@ -134,7 +134,7 @@ int tl_sim_pakcet_process(tl_com_t *pCom)
 		if(TL_IS_DEBUG(RX))
 		{
 			tl_log_info("Recived packet from %s, line state is %d", 
-				pCom->szPortName, pCom->iLineSate );
+				pCom->szPortName, pCom->iLineState );
 			if(TL_IS_DEBUG(PKT_DUMP))
 				tl_log_info("[%s]", pCom->arrRecived);
 		}
@@ -155,7 +155,7 @@ int tl_sim_pakcet_process(tl_com_t *pCom)
 	else
 		iRet = ERROR;
 
-	pCom->iLineSate = TL_COM_IDLE;
+	pCom->iLineState = TL_COM_IDLE;
 	return iRet;
 }
 
