@@ -98,7 +98,6 @@ void tl_exit_callback(void *pCookie)
 int32_t tl_wd_thread(thread_t *pThread)
 {
 	int i;
-	struct timeval stDelay;
 	tl_global_config_t *pDbGlobal = (tl_global_config_t*)pThread->pArg;
 	tl_global_t *pGlobal = tl_get_global();
 	pGlobal->pWDThread = NULL;
@@ -124,9 +123,8 @@ int32_t tl_wd_thread(thread_t *pThread)
 			pDbGlobal->arrDevices[i]->iSendConfig = 0;
 		}
 	}	
-	stDelay.tv_sec = pDbGlobal->iWdInterval / 1000;
-	stDelay.tv_usec = 1000*(pDbGlobal->iWdInterval % 1000);
-	pGlobal->pWDThread = thread_timer_add(&(pGlobal->stMaintThread), tl_wd_thread, pDbGlobal, &stDelay); 
+	pGlobal->pWDThread = thread_timer_add(&(pGlobal->stMaintThread), 
+									tl_wd_thread, pDbGlobal, pDbGlobal->iWdInterval); 
 	return 1;
 }
 
@@ -148,7 +146,6 @@ void tl_mask_signals()
 int main(int argc, char **argv)
 {
 	int iOpt, iDaemon=0, iSem=-1, iCfg = 0;
-	struct timeval stWDDelay;
 	tl_global_config_t *pDbGlobal = tl_get_global_dbase();
 	struct option 	stLongOptions[] =
 					{
@@ -245,9 +242,8 @@ int main(int argc, char **argv)
 	tl_check_controlers();
 	tl_send_controlers_config(TL_ADDRESS_BCAST);
 
-	stWDDelay.tv_sec = pDbGlobal->iWdInterval / 1000;
-	stWDDelay.tv_usec = 1000*(pDbGlobal->iWdInterval % 1000);
-	stGlobal.pWDThread = thread_timer_add(&(stGlobal.stMaintThread), tl_wd_thread, pDbGlobal, &stWDDelay);
+	stGlobal.pWDThread = thread_timer_add(&(stGlobal.stMaintThread), 
+								tl_wd_thread, pDbGlobal, pDbGlobal->iWdInterval);
 
 	tl_clock_gettime(&(pDbGlobal->stStartTime));
 

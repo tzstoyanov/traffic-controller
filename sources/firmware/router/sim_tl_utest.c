@@ -39,7 +39,6 @@ struct
 
 int32_t sim_tl_utest_step(thread_t *pThread)
 {
-	struct timeval stDelay;
 	tl_sim_global_t *pGlobal = tl_get_global_sim();
 	tl_global_config_t *pDbGlobal = tl_get_global_dbase();		
 	int iTestsCount = (sizeof(arrSimUtest)/sizeof(arrSimUtest[0]));
@@ -59,25 +58,22 @@ int32_t sim_tl_utest_step(thread_t *pThread)
 	else
 	{
 		pGlobal->iTestStepCount++;
-		stDelay.tv_sec = pGlobal->iTestStepDelay / 1000;
-		stDelay.tv_usec = 1000*(pGlobal->iTestStepDelay % 1000);	
-		pGlobal->pUTThread = thread_timer_add(&(pGlobal->stMaintThread), sim_tl_utest_step, NULL, &stDelay);
+		pGlobal->pUTThread = thread_timer_add(&(pGlobal->stMaintThread), 
+									sim_tl_utest_step, NULL, pGlobal->iTestStepDelay);
 	}	
 	return 1;
 }
 
 int sim_tl_utest_start()
 {
-	struct timeval stDelay;
 	tl_sim_global_t *pGlobal = tl_get_global_sim();
 	
 	tl_log_info("");
 	tl_log_info("Starting test [%s]", arrSimUtest[pGlobal->iTestInProgress].szTestName);
 	arrSimUtest[pGlobal->iTestInProgress].fHookInit();
 
-	stDelay.tv_sec = pGlobal->iTestStepDelay / 1000;
-	stDelay.tv_usec = 1000*(pGlobal->iTestStepDelay % 1000);
-	pGlobal->pUTThread = thread_timer_add(&(pGlobal->stMaintThread), sim_tl_utest_step, NULL, &stDelay); 
+	pGlobal->pUTThread = thread_timer_add(&(pGlobal->stMaintThread), 
+	                        sim_tl_utest_step, NULL, pGlobal->iTestStepDelay); 
 	return OK;
 }
 

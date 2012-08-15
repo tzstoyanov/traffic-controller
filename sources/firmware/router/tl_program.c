@@ -68,7 +68,6 @@ void tl_program_invalid()
 int tl_program_step(tl_program_t *pProgram)
 {
 	uint8_t iAddress;
-	struct timeval stDelay;
 	tl_global_config_t *pGlobalDb = tl_get_global_dbase();
 	tl_global_t *pGlobal = tl_get_global();	
 	
@@ -117,9 +116,9 @@ int tl_program_step(tl_program_t *pProgram)
 		if(TL_IS_DEBUG(PROGRAM))
 			tl_log_info("Executing program step %d, delay %ds", pProgram->iCurrentStep,
 						pProgram->arrInstructions[pProgram->iCurrentStep].u.iDelay);		
-		stDelay.tv_sec = pProgram->arrInstructions[pProgram->iCurrentStep].u.iDelay / 1000;
-		stDelay.tv_usec = 1000 * (pProgram->arrInstructions[pProgram->iCurrentStep].u.iDelay % 1000);	
-		pProgram->pDelayThread = thread_timer_add(&(pGlobal->stMaintThread), tl_program_delay, pProgram, &stDelay);
+		pProgram->pDelayThread = thread_timer_add(&(pGlobal->stMaintThread), 
+									tl_program_delay, pProgram, 
+									pProgram->arrInstructions[pProgram->iCurrentStep].u.iDelay);
 	}
 	return OK;
 }

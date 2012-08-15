@@ -122,20 +122,20 @@ int time_compare ( struct timeval *t1, struct timeval *t2)
 	return 0;
 }
 
-thread_t *thread_timer_add(main_thread_t *pMain, thread_callback_t fCallback, void *pArg, struct timeval *pTime)
+thread_t *thread_timer_add(main_thread_t *pMain, thread_callback_t fCallback, void *pArg, uint32_t imSec)
 {
 	thread_t *pThread = thread_get(pMain);
 	thread_t *pCurrent, *pPrev=NULL;
 	struct timeval stTime;
 	
-	if(NULL == pThread || NULL == pTime)
+	if(NULL == pThread)
 		return NULL;
 	pThread->iType = THREAD_TIMER;
 	pThread->fCallback = fCallback;
 	pThread->pArg = pArg;
 	gettimeofday(&stTime, NULL);
-	pThread->stTime.tv_sec = stTime.tv_sec + pTime->tv_sec;
-	pThread->stTime.tv_usec = stTime.tv_usec + pTime->tv_usec;
+	pThread->stTime.tv_sec = stTime.tv_sec + (imSec/1000);
+	pThread->stTime.tv_usec = stTime.tv_usec + (1000*(imSec%1000));
 	if(pThread->stTime.tv_usec >= 1000000)
 	{
 		pThread->stTime.tv_sec++;

@@ -32,7 +32,6 @@ void print_help(char *pPname)
 int32_t sim_tl_wd_thread(thread_t *pThread)
 {
 	int i;
-	struct timeval stDelay;
 	tl_sim_global_t *pGlobal = (tl_sim_global_t*)pThread->pArg;
 	tl_global_config_t *pDbGlobal = tl_get_global_dbase();	
 		
@@ -50,9 +49,8 @@ int32_t sim_tl_wd_thread(thread_t *pThread)
 				pDbGlobal->arrDevices[i]->szName, pDbGlobal->arrDevices[i]->iWdMiss);
 	}
 
-	stDelay.tv_sec = pDbGlobal->iWdInterval / 1000;
-	stDelay.tv_usec = 1000*(pDbGlobal->iWdInterval % 1000);
-	pGlobal->pWDThread = thread_timer_add(&(pGlobal->stMaintThread), sim_tl_wd_thread, pGlobal, &stDelay); 
+	pGlobal->pWDThread = thread_timer_add(&(pGlobal->stMaintThread), 
+								sim_tl_wd_thread, pGlobal, pDbGlobal->iWdInterval); 
 	return 1;
 }
 
@@ -73,7 +71,6 @@ int sim_get_client_fd()
 int main(int argc, char **argv)
 {
 	int iOpt, iCfg = 0, iDaemon=0, iSem=-1;
-	struct timeval stWDDelay;
 	tl_global_config_t *pDbGlobal = tl_get_global_dbase();	
 	struct option 	stLongOptions[] =
 					{
@@ -170,9 +167,8 @@ int main(int argc, char **argv)
 	pDbGlobal->stPort.pReadThread  = 
 		thread_read_add(&(stSimGlobal.stMaintThread), sim_tl_com_read, &(pDbGlobal->stPort), pDbGlobal->stPort.iNetFd);
 
-	stWDDelay.tv_sec = pDbGlobal->iWdInterval / 1000;
-	stWDDelay.tv_usec = 1000*(pDbGlobal->iWdInterval % 1000);
-	stSimGlobal.pWDThread = thread_timer_add(&(stSimGlobal.stMaintThread), sim_tl_wd_thread, &stSimGlobal, &stWDDelay);
+	stSimGlobal.pWDThread = thread_timer_add(&(stSimGlobal.stMaintThread), 
+								sim_tl_wd_thread, &stSimGlobal, pDbGlobal->iWdInterval);
 
 	stSimGlobal.iApiFd = tl_mgmt_connect();
 	sim_tl_utest_init();

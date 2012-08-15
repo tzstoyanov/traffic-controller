@@ -105,8 +105,8 @@ thread_t *thread_event_add(main_thread_t *pMain, thread_callback_t fCallback, vo
 /// \param pMain pointer to main thread, already allocated
 /// \param fCallback Callback functon
 /// \param pArg custom callback argument 
-/// \param pTime time period
-thread_t *thread_timer_add(main_thread_t *pMain, thread_callback_t fCallback, void *pArg, struct timeval *pTime);
+/// \param imSec time period in msec
+thread_t *thread_timer_add(main_thread_t *pMain, thread_callback_t fCallback, void *pArg, uint32_t imSec);
 
 //! Cancel thread
 /// Cancel executoin of given thread
