@@ -31,9 +31,8 @@ static int32_t tl_program_delay(thread_t *pThread)
  	tl_program_t *pProgram = (tl_program_t*)pThread->pArg;
 	pProgram->iCurrentStep++;
 	pProgram->pDelayThread = NULL;
-		
-	if((pProgram->iExitStep && ((pProgram->iExitStep-1) == pProgram->iCurrentStep)) ||
-		((0 == pProgram->iExitStep) && pProgram->iCount == pProgram->iCurrentStep))
+	
+	if( TL_PROGRAM_EXITING != pProgram->iState && pProgram->iExitStep == pProgram->iLoopEnd)	
 	{
 		pProgram->iCurrentStep = pProgram->iLoopStep;	
 		pProgram->iLoopCount++;
@@ -97,8 +96,7 @@ int tl_program_step(tl_program_t *pProgram)
 		}
 
 		pProgram->iCurrentStep++;
-		if((pProgram->iExitStep && ((pProgram->iExitStep-1) == pProgram->iCurrentStep)) ||
-			((0 == pProgram->iExitStep) && pProgram->iCount == pProgram->iCurrentStep))
+		if( TL_PROGRAM_EXITING != pProgram->iState && pProgram->iExitStep == pProgram->iLoopEnd)
 		{
 			pProgram->iCurrentStep = pProgram->iLoopStep;
 			pProgram->iLoopCount++;
