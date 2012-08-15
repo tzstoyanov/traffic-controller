@@ -76,6 +76,7 @@ int tl_com_pakcet_process(tl_com_t *pCom)
 				break;
 			iRet = OK;	
 		}
+		iRet = OK;
 	}
 	else
 	{
