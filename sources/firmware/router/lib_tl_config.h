@@ -29,7 +29,6 @@ int tl_parse_cfg_file(char *szFileName, tl_global_config_t*pGlobal,
 							tl_new_controler_callback_t fNewControler);
 int tl_get_next_token(char **pszLine, char **pszString);
 tl_global_config_t *tl_get_global_dbase();
-void get_time_rel(struct timeval *pNow);
 void tl_daemonzie(int iSem);
 
 #endif /* __TLIGHT_CONFIG_H__ */

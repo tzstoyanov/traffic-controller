@@ -42,6 +42,7 @@ int tl_com_local_pkt_verify(tl_com_t *pCom)
 	if(pCom->iRcvSize != pCom->iSendSize || 0 != memcmp(pCom->arrSend, pCom->arrRecived, pCom->iRcvSize))
 	{
 		tl_log_error("Local Echo check failed !");
+		pCom->iLineErrors++;
 		pCom->iLineState = TL_COM_CONFLICT;
 		return ERROR;
 	}

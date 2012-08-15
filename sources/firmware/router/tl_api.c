@@ -73,7 +73,8 @@ int tl_api_get_status(int iClient, int iFd, uint32_t iCommand, uint32_t iLen, ui
 	stStatus.iCritError = pGlobal->iCritError;
 	stStatus.iWarning = pGlobal->iWarning;	
 	stStatus.szProgLoaded[0]=0;
-	get_time_rel(&(stStatus.stUpTime));
+	get_time_rel(&(pGlobalDb->stStartTime), &(stStatus.stUpTime));
+	stStatus.iLineErrors = pGlobalDb->stPort.iLineErrors;
 	if(pGlobal->pCurrentProgram)
 	{
 		strncpy(stStatus.szProgLoaded, pGlobal->pCurrentProgram->szProgramFile, 128); 

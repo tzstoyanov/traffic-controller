@@ -32,6 +32,7 @@ typedef struct
 	uint8_t	iRcvSize;
 	thread_t *pReadThread;
 	thread_t *pAcceptThread;
+	uint32_t iLineErrors;
 }tl_com_t;
 
 #endif /*  __TLIGHT_SERIAL_API_H__ */

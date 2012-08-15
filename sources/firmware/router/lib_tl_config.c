@@ -271,18 +271,6 @@ int tl_parse_cfg_file(char *szFileName, tl_global_config_t *pGlobal, tl_new_cont
 	return OK;
 }
 
-void get_time_rel(struct timeval *pNow)
-{
-	tl_global_config_t *pDbGlobal = tl_get_global_dbase();	
-
-	tl_clock_gettime(pNow);
-	pNow->tv_sec -= pDbGlobal->stStartTime.tv_sec;
-	if(pNow->tv_usec >= pDbGlobal->stStartTime.tv_usec)
-		pNow->tv_usec -= pDbGlobal->stStartTime.tv_usec;
-	else
-		pNow->tv_usec += (1000000 - pDbGlobal->stStartTime.tv_usec);	
-}
-
 void tl_daemonzie(int iSem)
 {
 	pid_t pid, sid;

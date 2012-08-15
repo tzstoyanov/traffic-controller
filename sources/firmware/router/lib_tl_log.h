@@ -52,5 +52,6 @@ char *tl_serialstate2string(tl_com_state_t iState);
 char *tl_command2string(uint8_t iCommand);
 
 void tl_print_help_debug();
+void get_time_rel(struct timeval *pBegin, struct timeval *pNow);
 
 #endif /* __TLIGHT_LOG_H__ */

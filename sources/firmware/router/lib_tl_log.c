@@ -193,8 +193,7 @@ int tl_clock_gettime(struct timeval *pNow)
 }
 
 void tl_print_help_debug()
-{
-	tl_log_info("\t--debug HEX\t\tDebug flags, HEX is bitmask of:");	
+{	
 	tl_log_info("\t\t %08X\tGateway related logs", TL_DEBUG_GATE);
 	tl_log_info("\t\t %08X\tLamp related logs", TL_DEBUG_LAMP);	
 	tl_log_info("\t\t %08X\tTimer related logs", TL_DEBUG_TIMER);	
@@ -208,3 +207,14 @@ void tl_print_help_debug()
 	tl_log_info("\t\t %08X\tConfig files parse", TL_DEBUG_CONFIG);	
 	tl_log_info("\t\t %08X\tManagement requests", TL_DEBUG_API);
 }
+
+void get_time_rel(struct timeval *pBegin, struct timeval *pNow)
+{
+	tl_clock_gettime(pNow);
+	pNow->tv_sec -= pBegin->tv_sec;
+	if(pNow->tv_usec >= pBegin->tv_usec)
+		pNow->tv_usec -= pBegin->tv_usec;
+	else
+		pNow->tv_usec += (1000000 - pBegin->tv_usec);	
+}
+

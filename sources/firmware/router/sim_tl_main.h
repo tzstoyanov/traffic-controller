@@ -21,6 +21,7 @@ typedef struct
 	int32_t iWdInterval;
 	int32_t iDeadCount;
 	uint8_t arrSlaves[TL_MAX_CONTROLERS];
+	struct timeval stLastStateTime;	
 	tl_utest_context_t stUtest;
 }tl_sim_controler_t;
 
