@@ -34,7 +34,7 @@ static int32_t tl_program_delay(thread_t *pThread)
 	
 	if( TL_PROGRAM_EXITING != pProgram->iState && pProgram->iLoopEnd == pProgram->iCurrentStep)	
 	{
-		pProgram->iCurrentStep = pProgram->iLoopStep;
+		pProgram->iCurrentStep = pProgram->iLoopStep;	
 		pProgram->iLoopCount++;
 		if(TL_IS_DEBUG(PROGRAM))
 			tl_log_info("Program looped at step %d", pProgram->iCurrentStep);				
