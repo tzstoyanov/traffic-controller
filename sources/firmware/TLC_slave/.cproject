@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<?fileVersion 4.0.0?>
+
+<cproject storage_type_id="org.eclipse.cdt.core.XmlProjectDescriptionStorage">
+	<storageModule moduleId="org.eclipse.cdt.core.settings">
+		<cconfiguration id="org.eclipse.cdt.core.default.config.1758903934">
+			<storageModule buildSystemId="org.eclipse.cdt.core.defaultConfigDataProvider" id="org.eclipse.cdt.core.default.config.1758903934" moduleId="org.eclipse.cdt.core.settings" name="Configuration">
+				<externalSettings/>
+				<extensions>
+					<extension id="org.eclipse.cdt.core.ELF" point="org.eclipse.cdt.core.BinaryParser"/>
+				</extensions>
+			</storageModule>
+			<storageModule moduleId="org.eclipse.cdt.core.externalSettings">
+				<externalSettings containerId="org.coocox.ExternalSettings" factoryId="org.eclipse.cdt.core.extension.container.factory">
+					<externalSetting>
+						<entry flags="" kind="includePath" name="D:\Program Files\arm-none-eabi-gcc-4_6\arm-none-eabi\include"/>
+						<entry flags="" kind="includePath" name="D:\Program Files\arm-none-eabi-gcc-4_6\lib\gcc\arm-none-eabi\4.6.2\include"/>
+						<entry flags="" kind="includePath" name="D:\Program Files\arm-none-eabi-gcc-4_6\lib\gcc\arm-none-eabi\4.6.2\include-fixed"/>
+						<entry flags="" kind="includePath" name="."/>
+						<entry flags="" kind="includePath" name="APPL"/>
+						<entry flags="" kind="includePath" name="CAN/LIN"/>
+						<entry flags="" kind="includePath" name="cmsis_core"/>
+						<entry flags="" kind="includePath" name="cmsis_lpc11xx"/>
+						<entry flags="" kind="includePath" name="DRV/CAN"/>
+						<entry flags="" kind="includePath" name="DRV/LIN"/>
+						<entry flags="" kind="includePath" name="DRV/NVRAM"/>
+						<entry flags="" kind="includePath" name="LIB"/>
+						<entry flags="" kind="includePath" name="LPC111x_Lib"/>
+						<entry flags="" kind="includePath" name="LPC111x_Lib/include"/>
+						<entry flags="" kind="includePath" name="OS"/>
+						<entry flags="" kind="includePath" name="semihosting"/>
+						<entry flags="" kind="includePath" name="SYS"/>
+						<entry flags="" kind="macro" name="__GNUC__" value=""/>
+						<entry flags="" kind="macro" name="TLC_SLAVE" value=""/>
+						<entry flags="" kind="macro" name="LPC11C12x301" value=""/>
+					</externalSetting>
+				</externalSettings>
+			</storageModule>
+			<storageModule moduleId="org.eclipse.cdt.core.language.mapping"/>
+			<storageModule moduleId="org.eclipse.cdt.internal.ui.text.commentOwnerProjectMappings"/>
+			<storageModule moduleId="org.eclipse.cdt.core.pathentry">
+				<pathentry kind="src" path=""/>
+				<pathentry include="D:/Program Files/arm-none-eabi-gcc-4_6/arm-none-eabi/include" kind="inc" path="" system="true"/>
+				<pathentry include="D:/Program Files/arm-none-eabi-gcc-4_6/lib/gcc/arm-none-eabi/4.6.2/include" kind="inc" path="" system="true"/>
+				<pathentry include="D:/Program Files/arm-none-eabi-gcc-4_6/lib/gcc/arm-none-eabi/4.6.2/include-fixed" kind="inc" path="" system="true"/>
+				<pathentry include="D:/Work/projects/TLC/04-Software/git/sources/firmware/TLC_slave" kind="inc" path="" system="true"/>
+				<pathentry include="D:/Work/projects/TLC/04-Software/git/sources/firmware/TLC_slave/APPL" kind="inc" path="" system="true"/>
+				<pathentry include="D:/Work/projects/TLC/04-Software/git/sources/firmware/TLC_slave/CAN/LIN" kind="inc" path="" system="true"/>
+				<pathentry include="D:/Work/projects/TLC/04-Software/git/sources/firmware/TLC_slave/cmsis_core" kind="inc" path="" system="true"/>
+				<pathentry include="D:/Work/projects/TLC/04-Software/git/sources/firmware/TLC_slave/cmsis_lpc11xx" kind="inc" path="" system="true"/>
+				<pathentry include="D:/Work/projects/TLC/04-Software/git/sources/firmware/TLC_slave/DRV/CAN" kind="inc" path="" system="true"/>
+				<pathentry include="D:/Work/projects/TLC/04-Software/git/sources/firmware/TLC_slave/DRV/LIN" kind="inc" path="" system="true"/>
+				<pathentry include="D:/Work/projects/TLC/04-Software/git/sources/firmware/TLC_slave/DRV/NVRAM" kind="inc" path="" system="true"/>
+				<pathentry include="D:/Work/projects/TLC/04-Software/git/sources/firmware/TLC_slave/LIB" kind="inc" path="" system="true"/>
+				<pathentry include="D:/Work/projects/TLC/04-Software/git/sources/firmware/TLC_slave/LPC111x_Lib" kind="inc" path="" system="true"/>
+				<pathentry include="D:/Work/projects/TLC/04-Software/git/sources/firmware/TLC_slave/LPC111x_Lib/include" kind="inc" path="" system="true"/>
+				<pathentry include="D:/Work/projects/TLC/04-Software/git/sources/firmware/TLC_slave/OS" kind="inc" path="" system="true"/>
+				<pathentry include="D:/Work/projects/TLC/04-Software/git/sources/firmware/TLC_slave/semihosting" kind="inc" path="" system="true"/>
+				<pathentry include="D:/Work/projects/TLC/04-Software/git/sources/firmware/TLC_slave/SYS" kind="inc" path="" system="true"/>
+				<pathentry kind="mac" name="__GNUC__" path="" value=""/>
+				<pathentry kind="mac" name="TLC_SLAVE" path="" value=""/>
+				<pathentry kind="mac" name="LPC11C12x301" path="" value=""/>
+				<pathentry kind="out" path=""/>
+			</storageModule>
+		</cconfiguration>
+	</storageModule>
+</cproject>
