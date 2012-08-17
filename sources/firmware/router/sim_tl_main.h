@@ -13,6 +13,7 @@ typedef struct
 	uint32_t iTestStepCount;
 	uint32_t iTestInProgress;
 	thread_t	*pUTThread;	
+	void *pUtContext;
 }tl_sim_global_t;
 
 typedef struct
@@ -27,6 +28,7 @@ typedef struct
 	uint8_t arrSlaves[TL_MAX_CONTROLERS];
 	struct timeval stLastStateTime;	
 	tl_utest_context_t stUtest;
+	int iSimStatus;
 }tl_sim_controler_t;
 
 tl_sim_global_t *tl_get_global_sim();
@@ -37,5 +39,8 @@ int sim_tl_controler(uint8_t iAddress, t_can_packet_t *pPacket);
 void sim_get_time_rel(struct timeval *pNow);
 int sim_get_client_fd();
 int sim_tl_utest_init();
+
+int sim_tl_check_status(uint8_t iDevError, uint8_t iCritical, 
+						uint8_t iWarning, tl_program_state_t iProgState);
 
 #endif /* __TLIGHT_SIM_MAIN_H__ */

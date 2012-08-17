@@ -5,6 +5,7 @@
 #include "tl_serial_api.h"
 #include "tl_program_api.h"
 #include "tl_controlers_api.h"
+#include "tl_api.h"
 #include "lib_tl_log.h"
 #include "lib_tl_config.h"
 #include "lib_tl_com.h"
@@ -252,6 +253,7 @@ tl_controler_t *sim_tl_NewControler(uint8_t iType)
 	{
 		pControler->iType = iType;
 		pControler->pData = pSim;
+		pSim->iSimStatus = -1;
 		tl_clock_gettime(&(pSim->stLastStateTime));
 	}
 	return pControler;	

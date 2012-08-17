@@ -276,6 +276,25 @@ int tl_send_deadcount(uint8_t iAddress)
 	return tl_com_send_session(&(pGlobal->stPort), iAddress, TL_COM_LOCAL_VERIFY);
 }
 
+int tl_send_comtimeout(uint8_t iAddress)
+{
+	uint8_t iData;
+	tl_global_config_t *pGlobal = tl_get_global_dbase();
+	if(TL_COM_IDLE != pGlobal->stPort.iLineState)
+		return ERROR;
+	iData = pGlobal->stPort.iTimeout;
+	tl_cfg_command_set(pGlobal->stPort.arrSend, iAddress, TL_CFGID_COMTIMEOUT, &iData, 1);
+	if(TL_IS_DEBUG(TX_CFG))
+	{
+		tl_log_info("Send config Timeout %d to %d", iData, iAddress);
+		if(TL_IS_DEBUG(PKT_DUMP))
+			tl_log_info("Send packet [%s]", pGlobal->stPort.arrSend);
+	}	
+	pGlobal->stPort.iSendSize = strlen(pGlobal->stPort.arrSend);
+	return tl_com_send_session(&(pGlobal->stPort), iAddress, TL_COM_LOCAL_VERIFY);
+}
+
+
 int tl_send_controlers_config(uint8_t iAddress)
 {
  uint8_t i;
@@ -283,6 +302,7 @@ int tl_send_controlers_config(uint8_t iAddress)
  
 	tl_send_wdinterval(iAddress);
 	tl_send_deadcount(iAddress);
+	tl_send_comtimeout(iAddress);
 	if(TL_ADDRESS_BCAST == iAddress)
 	{
 		for(i=1; i<TL_MAX_CONTROLERS; i++)
@@ -331,7 +351,7 @@ int tl_update_controler_state(tl_instruction_t *pCommand)
 			pCmdState = &(pCommand->u.stCommand.state.stTimer);
 			iSize = sizeof(tl_timer_state_t);
 			if(TL_IS_DEBUG(TIMER))
-				tl_log_info("Controler %s (%d) at address %d changed its state to [%s]",
+				tl_log_info("Controler %s at address %d changed its state to [%s]",
 						pGlobal->arrDevices[iAddress]->szName, iAddress,
 						tl_timerstate2string(&(pCommand->u.stCommand.state.stTimer)));
 			break;

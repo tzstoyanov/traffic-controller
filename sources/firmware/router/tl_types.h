@@ -9,6 +9,9 @@
 #define ERROR (-1)
 #endif
 
+#define TL_TIMEOUT	1
+#define TL_CONTINUE	2
+
 #define TL_MAX_CONTROLERS	255
 #define TL_MAX_TIMER_SEGMENTS	3
 #define TL_MAX_LAMP_SEGMENTS	4

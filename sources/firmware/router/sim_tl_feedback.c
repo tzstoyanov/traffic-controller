@@ -35,5 +35,24 @@ int sim_tl_get_mod(char *szName, tl_api_status_mod_t *pModStatus)
 	return ERROR;	
 }
 
+int sim_tl_check_status(uint8_t iDevError, uint8_t iCritical, 
+						uint8_t iWarning, tl_program_state_t iProgState)
+{
+	tl_api_status_t stStatus;
+	
+	if(OK == sim_tl_get_status(&stStatus))
+	{
+			if(iDevError != stStatus.iDeviceError)
+				return ERROR;
+			if(iCritical != stStatus.iCritError)
+				return ERROR;
+			if(iWarning != stStatus.iWarning)
+				return ERROR;
+			if(iProgState != stStatus.iProgState) 
+				return ERROR;		
+		return OK;		
+	}
+	return ERROR;
+}
 
 
