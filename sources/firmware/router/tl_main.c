@@ -50,10 +50,10 @@ void tl_check_system_status()
 			else
 				iWarning++;	
 		}
-		else if( TL_MODULE_ERR_OK != pDbGlobal->arrDevices[i]->iStatus)
+		else if( TL_MODULE_STATE_OK != pDbGlobal->arrDevices[i]->iStatus)
 		{
 			if(	pDbGlobal->arrDevices[i]->iCritical && 
-				TL_MODULE_ERR_HW_WARN != pDbGlobal->arrDevices[i]->iStatus &&
+				TL_MODULE_STATE_HW_WARN != pDbGlobal->arrDevices[i]->iStatus &&
 				pDbGlobal->arrDevices[i]->iErrorCount >= pDbGlobal->iDeadCount)
 				iCritical++;
 			else

@@ -50,17 +50,17 @@ int tl_reply_gate_status(tl_controler_t *pControler, uint8_t iDest)
 					iReplyStatus = pSim->iSimStatus;
 				else
 					iReplyStatus = pDbGlobal->arrDevices[i]->iStatus;
-				if(TL_MODULE_ERR_OK != iReplyStatus)
+				if(TL_MODULE_STATE_OK != iReplyStatus)
 					arrStatus[j] = 	((pDbGlobal->arrDevices[i]->iType & 0x07) << 5) |
-									((TL_MODULE_STATE_FAIL & 0x01) << 4) |
+									((TL_MODULE_STATUS_FAIL & 0x01) << 4) |
 									(iReplyStatus & 0x0F);
 				else if(TL_MODULE_LAMP != pDbGlobal->arrDevices[i]->iType)
 					arrStatus[j] = 	((pDbGlobal->arrDevices[i]->iType & 0x07) << 5) |
-									((TL_MODULE_STATE_OK & 0x01) << 4) |
+									((TL_MODULE_STATUS_OK & 0x01) << 4) |
 									(iReplyStatus & 0x0F);
 				 else
 					arrStatus[j] = 	((pDbGlobal->arrDevices[i]->iType & 0x07) << 5) |
-									((TL_MODULE_STATE_OK & 0x01) << 4) |
+									((TL_MODULE_STATUS_OK & 0x01) << 4) |
 					(((tl_controler_lamp_t*)(pDbGlobal->arrDevices[i]))->stCurrentState.iState & 0x0F);
 				j++;
 				iCount--;

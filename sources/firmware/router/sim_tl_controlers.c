@@ -57,7 +57,7 @@ int tl_controler_config_tlv(tl_controler_t *pControler, uint8_t iCfgId, uint8_t 
 		&& 0 == pSim->arrSlaves[0])
 		iCfgOk=0;
 	if(iCfgOk)
-		pControler->iStatus = TL_MODULE_ERR_OK;
+		pControler->iStatus = TL_MODULE_STATE_OK;
 	return OK;		
 }
 
@@ -222,25 +222,25 @@ tl_controler_t *sim_tl_NewControler(uint8_t iType)
 	{
 		case TL_MODULE_MASTER:
 			pControler = calloc(1, sizeof(tl_controler_t));
-			pControler->iStatus = TL_MODULE_ERR_INIT;
+			pControler->iStatus = TL_MODULE_STATE_INIT;
 			pControler->fPktProcess = sim_tl_controler;
 			pControler->iCritical = 1;
 			break;
 		case TL_MODULE_GATE:
 			pControler = calloc(1, sizeof(tl_controler_t));
-			pControler->iStatus = TL_MODULE_ERR_INIT;
+			pControler->iStatus = TL_MODULE_STATE_INIT;
 			pControler->fPktProcess = sim_tl_controler;
 			pControler->iCritical = 0;
 			break;
 		case TL_MODULE_LAMP:
 			pControler = calloc(1, sizeof(tl_controler_lamp_t));				
-			pControler->iStatus = TL_MODULE_ERR_INIT;
+			pControler->iStatus = TL_MODULE_STATE_INIT;
 			pControler->fPktProcess = sim_tl_controler;
 			pControler->iCritical = 1;
 			break;
 		case TL_MODULE_TIMER:
 			pControler = calloc(1, sizeof(tl_controler_timer_t));		
-			pControler->iStatus = TL_MODULE_ERR_INIT;
+			pControler->iStatus = TL_MODULE_STATE_INIT;
 			pControler->fPktProcess = sim_tl_controler;
 			pControler->iCritical = 0;
 			break;

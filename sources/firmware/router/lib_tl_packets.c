@@ -193,13 +193,13 @@ int tl_wdresponce_lamp_command_set(char *arrCommand,
 	stPacket.iAddress = iDstId;
 	stPacket.iLen = 2;
 	stPacket.arrData[0] = iSrcId;
-	if(TL_MODULE_ERR_OK == pLamp->stHead.iStatus)
+	if(TL_MODULE_STATE_OK == pLamp->stHead.iStatus)
 		stPacket.arrData[1] = 	((TL_MODULE_LAMP & 0x07) << 5) |
-								((TL_MODULE_STATE_OK & 0x01) << 4) |
+								((TL_MODULE_STATUS_OK & 0x01) << 4) |
 								(pLamp->stCurrentState.iState & 0x0F);
 	 else
 		stPacket.arrData[1] =	((TL_MODULE_LAMP & 0x07) << 5) |
-								((TL_MODULE_STATE_FAIL & 0x01) << 4) |
+								((TL_MODULE_STATUS_FAIL & 0x01) << 4) |
 								(pLamp->stHead.iStatus & 0x0F);
 	 							
 	return	tl_can_pkt_encode(&stPacket, arrCommand);
@@ -216,10 +216,10 @@ int tl_wdresponce_timer_command_set(char *arrCommand,
 	stPacket.iAddress = iDstId;
 	stPacket.iLen = 2;
 	stPacket.arrData[0] = iSrcId;
-	if(TL_MODULE_ERR_OK == pTimer->stHead.iStatus)
-		iStatus = TL_MODULE_STATE_OK;
+	if(TL_MODULE_STATE_OK == pTimer->stHead.iStatus)
+		iStatus = TL_MODULE_STATUS_OK;
 	else	
-		iStatus = TL_MODULE_STATE_FAIL;
+		iStatus = TL_MODULE_STATUS_FAIL;
 	stPacket.arrData[1] =  	((TL_MODULE_TIMER & 0x07) << 5) |
 							((iStatus & 0x01) << 4) |
 							(pTimer->stHead.iStatus & 0x0F);

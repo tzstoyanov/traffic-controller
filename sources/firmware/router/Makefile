@@ -23,13 +23,13 @@ LDFLAGS="-L$(TOOLCHAIN_LIB_PATH)"
 
 #Where the include files for current toolchain are
 #Trying with different compiler flags
-CFLAGS="-I$(TOOLCHAIN_PATH)include -Os -pipe -mips32 -mtune=mips32 -funit-at-a-time"
+CFLAGS="-I$(TOOLCHAIN_PATH)include -Os -pipe -mips32 -mtune=mips32 -funit-at-a-time -I../common"
 #CFLAGS="-I$(TOOLCHAIN_PATH)include -D__KERNEL__ -Wall -Wstrict-prototypes -Wno-trigraphs -fno-strict-aliasing -fno-common -fno-builtin-strpbrk -fno-builtin-sprintf -fomit-frame-pointer  -funit-at-a-time  -fno-delayed-branch -mno-abicalls -pipe -DMODULE -mlong-calls"
 
 else
 
 CC=gcc 
-CFLAGS = -Wall -Werror -g -I.
+CFLAGS = -Wall -Werror -g -I. -I../common
 
 endif
 

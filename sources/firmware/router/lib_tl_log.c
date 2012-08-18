@@ -69,14 +69,13 @@ char *tl_status2string(uint8_t iStatus)
 {
 	switch(iStatus)
 	{
-		case TL_MODULE_ERR_OK:			return "OK";
-		case TL_MODULE_ERR_INIT:		return "Init";
-		case TL_MODULE_ERR_HW_ERR:		return "Critical Hardware failure";
-		case TL_MODULE_ERR_HW_WARN:		return "Warning Hardware failure";
-		case TL_MODULE_ERR_COMM:		return "Communication error";
-		case TL_MODULE_ERR_SLAVE:		return "Slave error";
-		case TL_MODULE_ERR_TIMEOUT:		return "Communication timeout";
-		case TL_MODULE_ERR_MISMATCH:	return "Mismatch";
+		case TL_MODULE_STATE_OK:		return "OK";
+		case TL_MODULE_STATE_INIT:		return "Init";
+		case TL_MODULE_STATE_HW_ERR:	return "Critical Hardware failure";
+		case TL_MODULE_STATE_HW_WARN:	return "Warning Hardware failure";
+		case TL_MODULE_STATE_COMM_ERR:	return "Communication error";
+		case TL_MODULE_STATE_TIMEOUT:	return "Communication timeout";
+		case TL_MODULE_STATE_MISMATCH:	return "Mismatch";
 		default: break;
 	}
 	return "Uknown";
