@@ -16,10 +16,6 @@
 typedef int (*sim_utest_hook_t)(tl_sim_global_t *pGlobal);
 int sim_tl_utest_start();
 
-typedef struct{
-    
-}sim_ut_normal_t;
-
 int sim_utest_normal_init(tl_sim_global_t *pSim)
 {
 	int i;
@@ -32,6 +28,7 @@ int sim_utest_normal_init(tl_sim_global_t *pSim)
 			break;	
 		pSimControler = (tl_sim_controler_t *)pDbGlobal->arrDevices[i]->pData;
 		pSimControler->iSimStatus = -1;
+		pSimControler->iSimSegments = -1;
 	}
 	
 	return OK;
@@ -39,20 +36,93 @@ int sim_utest_normal_init(tl_sim_global_t *pSim)
 
 int sim_utest_normal_step(tl_sim_global_t *pSim)
 {	
+	int iRet;
 	if(3 <=  pSim->iTestStepCount)
-		return sim_tl_check_status(0, 0, 0, TL_PROGRAM_RUNNING);
-
+	{
+		iRet = sim_tl_check_status(0, 0, 0, TL_PROGRAM_RUNNING);
+		tl_log_info(" ... %s", OK==iRet?"PASSED":"FAILED");
+		return OK;
+	}
 	return TL_CONTINUE;
 }
 
-int sim_utest_timerfailed_init(tl_sim_global_t *pSim)
+int sim_utest_timerstate_init(tl_sim_global_t *pSim)
 {
+	int i;
+	tl_global_config_t *pDbGlobal = tl_get_global_dbase();		
+	tl_sim_controler_t *pSimControler = NULL;
+	
+	tl_log_info("");
+	for(i=1; i<TL_MAX_CONTROLERS; i++)
+	{
+		if(NULL == pDbGlobal->arrDevices[i])
+			break;	
+		if(TL_MODULE_TIMER != pDbGlobal->arrDevices[i]->iType)
+			continue; 
+		pSim->iDut = i;	
+		pSimControler = (tl_sim_controler_t *)pDbGlobal->arrDevices[i]->pData;
+		pSimControler->iSimStatus = TL_MODULE_STATE_INIT;	
+		bzero(pSimControler->arrCfgReceived, sizeof(pSimControler->arrCfgReceived));
+		break;
+	}
+
 	return OK;
 }
 
-int sim_utest_timerfailed_step(tl_sim_global_t *pSim)
+int sim_utest_timerstate_step(tl_sim_global_t *pSim)
 {
-	return OK;
+	int iRet;
+	tl_sim_controler_t *pSimControler;
+	tl_global_config_t *pDbGlobal = tl_get_global_dbase();
+	
+	if(0 == (1+pSim->iTestStepCount)%3)
+	{
+		pSimControler = (tl_sim_controler_t *)pDbGlobal->arrDevices[pSim->iDut]->pData;
+		
+		tl_log_info_nonr("\t Status %s ... ",  tl_status2string(pSimControler->iSimStatus));
+		
+		if(TL_MODULE_STATE_OK == pSimControler->iSimStatus)
+			iRet = sim_tl_check_status(0, 0, 0, TL_PROGRAM_RUNNING);		
+		else
+			iRet = sim_tl_check_status(1, 0, 1, TL_PROGRAM_RUNNING);	
+		if(OK != iRet)
+			tl_log_info("FAILED, unexpected system state");
+
+		if(TL_MODULE_STATE_INIT == pSimControler->iSimStatus)
+		{
+			if(0 == pSimControler->arrCfgReceived[TL_CFGID_QINTERVAL-1])
+			{
+				iRet = ERROR;
+				tl_log_info("FAILED, Config qInterval not received");
+			}
+			if(0 == pSimControler->arrCfgReceived[TL_CFGID_DEADCOUNT-1])
+			{
+				iRet = ERROR;
+				tl_log_info("FAILED, Config DeadCount not received");
+			}
+			if(0 == pSimControler->arrCfgReceived[TL_CFGID_COMTIMEOUT-1])
+			{
+				iRet = ERROR;
+				tl_log_info("FAILED, Config CommTimeout not received");			
+			}
+			if(0 != pSimControler->arrCfgReceived[TL_CFGID_SLAVES-1])
+			{
+				iRet = ERROR;
+				tl_log_info("FAILED, Config Slaves not received");				
+			}		
+		}
+		if(OK == iRet)
+			tl_log_info("PASSED");
+		pSimControler->iSimStatus++;
+		if(TL_MODULE_STATE_MISMATCH == pSimControler->iSimStatus)
+			pSimControler->iSimStatus = TL_MODULE_STATE_OK;	
+		if(TL_MODULE_STATE_INIT == pSimControler->iSimStatus)
+		{
+			pSimControler->iSimStatus = -1;	
+			return OK;
+		}	
+	}
+	return TL_CONTINUE;
 }
 
 struct
@@ -62,7 +132,7 @@ struct
 	char *szTestName;
 }arrSimUtest[]={
 	{sim_utest_normal_init, sim_utest_normal_step, "Normal operation"},
-	{sim_utest_timerfailed_init, sim_utest_timerfailed_step, "Failure - non sritical"}
+	{sim_utest_timerstate_init, sim_utest_timerstate_step, "Timer Status Change"}
 };
 
 int32_t sim_tl_utest_step(thread_t *pThread)
@@ -75,7 +145,6 @@ int32_t sim_tl_utest_step(thread_t *pThread)
 	iRet = arrSimUtest[pSim->iTestInProgress].fHookStep(pSim);
 	if(TL_CONTINUE != iRet)
 	{
-		tl_log_info("\t\t %s", OK==iRet?"Passed":"Failed");
 		pSim->iTestInProgress++;
 		if(pSim->iTestInProgress >= iTestsCount)	
 		{
@@ -99,11 +168,7 @@ int sim_tl_utest_start()
 {
 	tl_sim_global_t *pSim = tl_get_global_sim();
 	
-	tl_log_info("");
-	tl_log_info("Starting test [%s]", arrSimUtest[pSim->iTestInProgress].szTestName);
-	if(pSim->pUtContext)
-	    free(pSim->pUtContext);
-	pSim->pUtContext = NULL;    
+	tl_log_info_nonr("Starting test [%s]", arrSimUtest[pSim->iTestInProgress].szTestName);
 	arrSimUtest[pSim->iTestInProgress].fHookInit(pSim);
 
 	pSim->pUTThread = thread_timer_add(&(pSim->stMaintThread), 

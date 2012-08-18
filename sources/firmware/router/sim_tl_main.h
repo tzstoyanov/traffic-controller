@@ -13,22 +13,19 @@ typedef struct
 	uint32_t iTestStepCount;
 	uint32_t iTestInProgress;
 	thread_t	*pUTThread;	
-	void *pUtContext;
+	uint8_t iDut;
 }tl_sim_global_t;
-
-typedef struct
-{
-	
-}tl_utest_context_t;
 
 typedef struct
 {
 	int32_t iWdInterval;
 	int32_t iDeadCount;
+	int32_t iComTimeout;
 	uint8_t arrSlaves[TL_MAX_CONTROLERS];
 	struct timeval stLastStateTime;	
-	tl_utest_context_t stUtest;
+	uint32_t arrCfgReceived[TL_CFGID_SLAVES];
 	int iSimStatus;
+	int iSimSegments;
 }tl_sim_controler_t;
 
 tl_sim_global_t *tl_get_global_sim();

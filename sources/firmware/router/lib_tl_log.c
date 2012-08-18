@@ -43,6 +43,26 @@ void tl_log_info(const char *format, ... )
 	va_end(args);
 }
 
+void tl_log_info_nonr(const char *format, ... )
+{
+	va_list args;
+	
+	if(TL_LOG2NULL == iTlLogDestination)
+		return;
+	
+	va_start(args, format);
+	
+	if(TL_LOG2CONSOLE == iTlLogDestination)
+	{
+		vprintf(format, args);
+		fflush(stdout);
+	}
+	else
+		vsyslog(LOG_DEBUG, format, args);
+	
+	va_end(args);
+}
+
 void tl_log_error(const char *format, ... )
 {
 	va_list args;

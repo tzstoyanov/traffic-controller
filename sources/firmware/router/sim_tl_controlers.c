@@ -28,16 +28,25 @@ int tl_controler_config_tlv(tl_controler_t *pControler, uint8_t iCfgId, uint8_t 
 			if(iCfgLen < 1)
 				return ERROR;
 			pSim->iWdInterval = pData[0];
-			pSim->iWdInterval *= 10;			
-			break;
+			pSim->iWdInterval *= 10;
+			pSim->arrCfgReceived[TL_CFGID_QINTERVAL-1]++;
+			break;	
 		case TL_CFGID_DEADCOUNT:
 			if(iCfgLen < 1)
 				return ERROR;
-			pSim->iDeadCount = pData[0];			
+			pSim->iDeadCount = pData[0];
+			pSim->arrCfgReceived[TL_CFGID_DEADCOUNT-1]++;
 			break;
+		case TL_CFGID_COMTIMEOUT:
+			if(iCfgLen < 1)
+				return ERROR;
+			pSim->iComTimeout = pData[0];
+			pSim->arrCfgReceived[TL_CFGID_COMTIMEOUT-1]++;
+			break;	
 		case TL_CFGID_SLAVES:
 			if(TL_MODULE_GATE != pControler->iType)
 				return ERROR;
+			pSim->arrCfgReceived[TL_CFGID_SLAVES-1]++;	
 			while(iCfgLen)
 			{
 				pSim->arrSlaves[i] = pData[i];
@@ -52,6 +61,8 @@ int tl_controler_config_tlv(tl_controler_t *pControler, uint8_t iCfgId, uint8_t 
 	if(pSim->iWdInterval != pDbGlobal->iWdInterval)
 		iCfgOk=0;
 	if(pSim->iDeadCount != pDbGlobal->iDeadCount)
+		iCfgOk=0;
+	if(pSim->iComTimeout != pDbGlobal->stPort.iTimeout)
 		iCfgOk=0;
 	if(	TL_MODULE_GATE == pControler->iType 
 		&& 0 == pSim->arrSlaves[0])
@@ -254,6 +265,7 @@ tl_controler_t *sim_tl_NewControler(uint8_t iType)
 		pControler->iType = iType;
 		pControler->pData = pSim;
 		pSim->iSimStatus = -1;
+		pSim->iSimSegments = -1;
 		tl_clock_gettime(&(pSim->stLastStateTime));
 	}
 	return pControler;	

@@ -15,7 +15,7 @@
 int tl_reply_gate_status(tl_controler_t *pControler, uint8_t iDest)
 {
 	uint8_t iCount = 0, i, j=0, iCommand;
-	uint8_t iReplyStatus;
+	uint8_t iReplyStatus, iReplySegments;
 	uint8_t arrSlaves[TL_MAX_PACKET_CAN_DATA/2], arrStatus[TL_MAX_PACKET_CAN_DATA/2];
 	tl_global_config_t *pDbGlobal = tl_get_global_dbase();			
 	tl_sim_controler_t *pSim = NULL;
@@ -50,6 +50,13 @@ int tl_reply_gate_status(tl_controler_t *pControler, uint8_t iDest)
 					iReplyStatus = pSim->iSimStatus;
 				else
 					iReplyStatus = pDbGlobal->arrDevices[i]->iStatus;
+				if(TL_MODULE_LAMP == pDbGlobal->arrDevices[i]->iType)
+				{	
+					if(pSim->iSimSegments >= 0)
+						iReplySegments = pSim->iSimSegments;
+					else
+						iReplySegments = ((tl_controler_lamp_t*)(pDbGlobal->arrDevices[i]))->stCurrentState.iState;
+				}	
 				if(TL_MODULE_STATE_OK != iReplyStatus)
 					arrStatus[j] = 	((pDbGlobal->arrDevices[i]->iType & 0x07) << 5) |
 									((TL_MODULE_STATUS_FAIL & 0x01) << 4) |
@@ -59,9 +66,9 @@ int tl_reply_gate_status(tl_controler_t *pControler, uint8_t iDest)
 									((TL_MODULE_STATUS_OK & 0x01) << 4) |
 									(iReplyStatus & 0x0F);
 				 else
-					arrStatus[j] = 	((pDbGlobal->arrDevices[i]->iType & 0x07) << 5) |
+					arrStatus[j] = 	(((pDbGlobal->arrDevices[i]->iType & 0x07) << 5) |
 									((TL_MODULE_STATUS_OK & 0x01) << 4) |
-					(((tl_controler_lamp_t*)(pDbGlobal->arrDevices[i]))->stCurrentState.iState & 0x0F);
+									(iReplySegments & 0x0F));
 				j++;
 				iCount--;
 			}
@@ -97,7 +104,10 @@ int tl_reply_gate_status(tl_controler_t *pControler, uint8_t iDest)
 int tl_reply_status(tl_controler_t *pControler, t_can_packet_t *pPacket)
 {
 	tl_global_config_t *pDbGlobal = tl_get_global_dbase();			
-
+	tl_sim_controler_t *pSim = (tl_sim_controler_t *)(pControler->pData);
+	tl_controler_lamp_t* pLamp;
+	int iLampSegments=-1, iRet;
+	
 	if(NULL == pControler)
 		return ERROR;
 
@@ -108,22 +118,29 @@ int tl_reply_status(tl_controler_t *pControler, t_can_packet_t *pPacket)
 		case TL_MODULE_GATE:
 			return tl_reply_gate_status(pControler, pPacket->arrData[0]);
 		case TL_MODULE_LAMP:
-			if(OK == tl_wdresponce_lamp_command_set(pDbGlobal->stPort.arrSend, 
-								pPacket->arrData[0], pControler->iId, 
-								(tl_controler_lamp_t*)pControler))
-				{	
-					pDbGlobal->stPort.iSendSize = strlen(pDbGlobal->stPort.arrSend);			
-					return tl_com_send(&(pDbGlobal->stPort)); 
-				}
+			pLamp = (tl_controler_lamp_t*)pControler;
+			if(pSim->iSimSegments >= 0)
+			{
+				iLampSegments = pLamp->stCurrentState.iState;
+				pLamp->stCurrentState.iState = pSim->iSimSegments;
+			}
+			iRet = tl_wdresponce_lamp_command_set(pDbGlobal->stPort.arrSend, 
+								pPacket->arrData[0], pControler->iId, pLamp );
+			if(iLampSegments >= 0)	
+				pLamp->stCurrentState.iState = iLampSegments;
+			if(OK == iRet)
+			{	
+				pDbGlobal->stPort.iSendSize = strlen(pDbGlobal->stPort.arrSend);			
+				return tl_com_send(&(pDbGlobal->stPort)); 
+			}
 			break;
 		case TL_MODULE_TIMER:
 			if(OK == tl_wdresponce_timer_command_set(pDbGlobal->stPort.arrSend, 
-								pPacket->arrData[0], pControler->iId, 
-								(tl_controler_timer_t*)pControler))
-				{	
+				pPacket->arrData[0], pControler->iId, (tl_controler_timer_t*)pControler))
+			{	
 					pDbGlobal->stPort.iSendSize = strlen(pDbGlobal->stPort.arrSend);
 					return tl_com_send(&(pDbGlobal->stPort));
-				}
+			}
 			break;
 		default:
 			return ERROR;	
