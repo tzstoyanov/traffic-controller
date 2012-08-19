@@ -6,6 +6,7 @@
 #include "tl_serial_api.h"
 #include "tl_program_api.h"
 #include "tl_controlers_api.h"
+#include "tl_api.h"
 #include "lib_tl_log.h"
 #include "lib_tl_config.h"
 #include "lib_tl_com.h"
@@ -107,7 +108,6 @@ int main(int argc, char **argv)
 			case 4: /* unit */
 			case 'u':
 				stSimGlobal.iUtest = 1;
-				tl_debug_switch_set(0);
 				break;
 			case 5:
 			case 'l':

@@ -5,6 +5,7 @@
 #include "tl_serial_api.h"
 #include "tl_program_api.h"
 #include "tl_controlers_api.h"
+#include "tl_api.h"
 #include "lib_tl_log.h"
 #include "lib_tl_config.h"
 #include "lib_tl_com.h"
@@ -27,16 +28,25 @@ int tl_controler_config_tlv(tl_controler_t *pControler, uint8_t iCfgId, uint8_t 
 			if(iCfgLen < 1)
 				return ERROR;
 			pSim->iWdInterval = pData[0];
-			pSim->iWdInterval *= 10;			
-			break;
+			pSim->iWdInterval *= 10;
+			pSim->arrCfgReceived[TL_CFGID_QINTERVAL-1]++;
+			break;	
 		case TL_CFGID_DEADCOUNT:
 			if(iCfgLen < 1)
 				return ERROR;
-			pSim->iDeadCount = pData[0];			
+			pSim->iDeadCount = pData[0];
+			pSim->arrCfgReceived[TL_CFGID_DEADCOUNT-1]++;
 			break;
+		case TL_CFGID_COMTIMEOUT:
+			if(iCfgLen < 1)
+				return ERROR;
+			pSim->iComTimeout = pData[0];
+			pSim->arrCfgReceived[TL_CFGID_COMTIMEOUT-1]++;
+			break;	
 		case TL_CFGID_SLAVES:
 			if(TL_MODULE_GATE != pControler->iType)
 				return ERROR;
+			pSim->arrCfgReceived[TL_CFGID_SLAVES-1]++;	
 			while(iCfgLen)
 			{
 				pSim->arrSlaves[i] = pData[i];
@@ -52,11 +62,13 @@ int tl_controler_config_tlv(tl_controler_t *pControler, uint8_t iCfgId, uint8_t 
 		iCfgOk=0;
 	if(pSim->iDeadCount != pDbGlobal->iDeadCount)
 		iCfgOk=0;
+	if(pSim->iComTimeout != pDbGlobal->stPort.iTimeout)
+		iCfgOk=0;
 	if(	TL_MODULE_GATE == pControler->iType 
 		&& 0 == pSim->arrSlaves[0])
 		iCfgOk=0;
 	if(iCfgOk)
-		pControler->iStatus = TL_MODULE_ERR_OK;
+		pControler->iStatus = TL_MODULE_STATE_OK;
 	return OK;		
 }
 
@@ -221,25 +233,25 @@ tl_controler_t *sim_tl_NewControler(uint8_t iType)
 	{
 		case TL_MODULE_MASTER:
 			pControler = calloc(1, sizeof(tl_controler_t));
-			pControler->iStatus = TL_MODULE_ERR_INIT;
+			pControler->iStatus = TL_MODULE_STATE_INIT;
 			pControler->fPktProcess = sim_tl_controler;
 			pControler->iCritical = 1;
 			break;
 		case TL_MODULE_GATE:
 			pControler = calloc(1, sizeof(tl_controler_t));
-			pControler->iStatus = TL_MODULE_ERR_INIT;
+			pControler->iStatus = TL_MODULE_STATE_INIT;
 			pControler->fPktProcess = sim_tl_controler;
 			pControler->iCritical = 0;
 			break;
 		case TL_MODULE_LAMP:
 			pControler = calloc(1, sizeof(tl_controler_lamp_t));				
-			pControler->iStatus = TL_MODULE_ERR_INIT;
+			pControler->iStatus = TL_MODULE_STATE_INIT;
 			pControler->fPktProcess = sim_tl_controler;
 			pControler->iCritical = 1;
 			break;
 		case TL_MODULE_TIMER:
 			pControler = calloc(1, sizeof(tl_controler_timer_t));		
-			pControler->iStatus = TL_MODULE_ERR_INIT;
+			pControler->iStatus = TL_MODULE_STATE_INIT;
 			pControler->fPktProcess = sim_tl_controler;
 			pControler->iCritical = 0;
 			break;
@@ -252,6 +264,8 @@ tl_controler_t *sim_tl_NewControler(uint8_t iType)
 	{
 		pControler->iType = iType;
 		pControler->pData = pSim;
+		pSim->iSimStatus = -1;
+		pSim->iSimSegments = -1;
 		tl_clock_gettime(&(pSim->stLastStateTime));
 	}
 	return pControler;	

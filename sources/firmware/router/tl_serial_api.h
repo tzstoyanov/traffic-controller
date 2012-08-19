@@ -22,7 +22,7 @@ typedef struct
 	uint32_t iPortSpeed;	
 	uint32_t iPortFlags;	
 	tl_com_type_t iType;
-	int32_t	iTimeout;
+	uint8_t	iTimeout;
 	int	iNetFd;
 	int iAccFd;
 	tl_com_state_t iLineState;

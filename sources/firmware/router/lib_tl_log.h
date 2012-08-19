@@ -35,6 +35,7 @@ int tl_log_init(tl_log_dest_t  iDest, char *szPrefix);
 void tl_log_dest_set(tl_log_dest_t  iDest);
 
 void tl_log_info(const char *format, ... );
+void tl_log_info_nonr(const char *format, ... );
 void tl_log_error(const char *format, ... );
 
 int tl_clock_gettime(struct timeval *pNow);

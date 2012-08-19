@@ -22,7 +22,9 @@ int tl_com_send(tl_com_t *pCom)
 	FD_ZERO(&stFdSet);		
 	FD_SET (pCom->iNetFd, &stFdSet);
 	iRet = select (FD_SETSIZE, NULL, &stFdSet, NULL, &stTime);
-	if(0 >= iRet)
+	if(0 == iRet)
+		return TL_TIMEOUT;
+	if(0 > iRet)
 		return ERROR;
 	iRet = write(pCom->iNetFd, pCom->arrSend, pCom->iSendSize);
 	if(iRet != pCom->iSendSize)
@@ -42,11 +44,17 @@ int tl_com_read_symbol(tl_com_t *pCom, uint8_t *pBuf)
 	FD_ZERO(&stFdSet);		
 	FD_SET (pCom->iNetFd, &stFdSet);
 	iRet = select (FD_SETSIZE, &stFdSet, NULL, NULL, &stTime);
-	if(0 >= iRet)
+	if(0 == iRet)
+		return TL_TIMEOUT;
+	if(0 > iRet)
+	{
+		tl_log_error("Select error %d %d %s", iRet, errno, strerror(errno));
 		return ERROR;
+	}
 	iRet = 	read(pCom->iNetFd, pBuf, 1);
 	if(1 == iRet)
 		return OK;
+	tl_log_error("Read error %d %d %s", iRet, errno, strerror(errno));	
 	if(0 == iRet)
 	{
 		close(pCom->iNetFd);

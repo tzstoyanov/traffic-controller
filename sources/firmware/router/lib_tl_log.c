@@ -43,6 +43,26 @@ void tl_log_info(const char *format, ... )
 	va_end(args);
 }
 
+void tl_log_info_nonr(const char *format, ... )
+{
+	va_list args;
+	
+	if(TL_LOG2NULL == iTlLogDestination)
+		return;
+	
+	va_start(args, format);
+	
+	if(TL_LOG2CONSOLE == iTlLogDestination)
+	{
+		vprintf(format, args);
+		fflush(stdout);
+	}
+	else
+		vsyslog(LOG_DEBUG, format, args);
+	
+	va_end(args);
+}
+
 void tl_log_error(const char *format, ... )
 {
 	va_list args;
@@ -69,14 +89,13 @@ char *tl_status2string(uint8_t iStatus)
 {
 	switch(iStatus)
 	{
-		case TL_MODULE_ERR_OK:			return "OK";
-		case TL_MODULE_ERR_INIT:		return "Init";
-		case TL_MODULE_ERR_HW_ERR:		return "Critical Hardware failure";
-		case TL_MODULE_ERR_HW_WARN:		return "Warning Hardware failure";
-		case TL_MODULE_ERR_COMM:		return "Communication error";
-		case TL_MODULE_ERR_SLAVE:		return "Slave error";
-		case TL_MODULE_ERR_TIMEOUT:		return "Communication timeout";
-		case TL_MODULE_ERR_MISMATCH:	return "Mismatch";
+		case TL_MODULE_STATE_OK:		return "OK";
+		case TL_MODULE_STATE_INIT:		return "Init";
+		case TL_MODULE_STATE_HW_ERR:	return "Critical Hardware failure";
+		case TL_MODULE_STATE_HW_WARN:	return "Warning Hardware failure";
+		case TL_MODULE_STATE_COMM_ERR:	return "Communication error";
+		case TL_MODULE_STATE_TIMEOUT:	return "Communication timeout";
+		case TL_MODULE_STATE_MISMATCH:	return "Mismatch";
 		default: break;
 	}
 	return "Uknown";

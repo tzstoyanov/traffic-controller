@@ -35,13 +35,13 @@ int tl_controler_check_common(uint8_t *arrStatus)
 
 	if(TL_MODULE_STATE_OK == iState)
 	{
-		iNewStatus = TL_MODULE_ERR_OK;
+		iNewStatus = TL_MODULE_STATE_OK;
 		if(TL_MODULE_LAMP == iPktType)
 		{
 			if(((tl_controler_lamp_t*)(pGlobal->arrDevices[iAddress]))->stCurrentState.iState != iStatus)
 			{
-				iNewStatus = TL_MODULE_ERR_MISMATCH;
-				if(TL_MODULE_ERR_MISMATCH != pGlobal->arrDevices[iAddress]->iStatus)
+				iNewStatus = TL_MODULE_STATE_MISMATCH;
+				if(TL_MODULE_STATE_MISMATCH != pGlobal->arrDevices[iAddress]->iStatus)
 					tl_log_error("State mismatch of %s (%d): 0x%X != 0x%X !", 
 						pGlobal->arrDevices[iAddress]->szName, iAddress, 
 						((tl_controler_lamp_t*)(pGlobal->arrDevices[iAddress]))->stCurrentState.iState,
@@ -63,7 +63,7 @@ int tl_controler_check_common(uint8_t *arrStatus)
 
 	if(iNewStatus != pGlobal->arrDevices[iAddress]->iStatus)
 	{
-		if(TL_MODULE_ERR_OK == iNewStatus)
+		if(TL_MODULE_STATE_OK == iNewStatus)
 			tl_log_info("Module %s is back to normal operation", pGlobal->arrDevices[iAddress]->szName);
 		else
 			tl_log_error("Module %s at adress %d enters in state %s", 
@@ -75,29 +75,27 @@ int tl_controler_check_common(uint8_t *arrStatus)
 
 	switch(iNewStatus)
 	{
-		case TL_MODULE_ERR_OK:
+		case TL_MODULE_STATE_OK:
 			pGlobal->arrDevices[iAddress]->iSendConfig=0;
 			return OK;
-		case TL_MODULE_ERR_INIT:
+		case TL_MODULE_STATE_INIT:
 			pGlobal->arrDevices[iAddress]->iSendConfig++;
 			return OK;
-		case TL_MODULE_ERR_HW_ERR:
+		case TL_MODULE_STATE_HW_ERR:
 			break;
-		case TL_MODULE_ERR_HW_WARN:
+		case TL_MODULE_STATE_HW_WARN:
 			break;
-		case TL_MODULE_ERR_COMM:
+		case TL_MODULE_STATE_COMM_ERR:
 			break;
-		case TL_MODULE_ERR_SLAVE:
+		case TL_MODULE_STATE_TIMEOUT:
 			break;
-		case TL_MODULE_ERR_TIMEOUT:
-			break;
-		case TL_MODULE_ERR_MISMATCH:
+		case TL_MODULE_STATE_MISMATCH:
 			break;	
 		default:
 			break;
 	}
 	
-	if(TL_MODULE_ERR_OK == iNewStatus)
+	if(TL_MODULE_STATE_OK == iNewStatus)
 		return OK;
 	return ERROR;
 }
@@ -146,25 +144,25 @@ tl_controler_t *tl_NewControler(uint8_t iType)
 	{
 		case TL_MODULE_MASTER:
 			pControler = calloc(1, sizeof(tl_controler_t));
-			pControler->iStatus = TL_MODULE_ERR_OK;
+			pControler->iStatus = TL_MODULE_STATE_OK;
 			pControler->iCritical = 1;
 			break;
 		case TL_MODULE_GATE:
 			pControler = calloc(1, sizeof(tl_controler_t));
 			pControler->fPktProcess = tl_controler_check_gate;
-			pControler->iStatus = TL_MODULE_ERR_INIT;
+			pControler->iStatus = TL_MODULE_STATE_INIT;
 			pControler->iCritical = 0;
 			break;
 		case TL_MODULE_LAMP:
 			pControler = calloc(1, sizeof(tl_controler_lamp_t));				
 			pControler->fPktProcess = tl_controler_check_module;
-			pControler->iStatus = TL_MODULE_ERR_INIT;
+			pControler->iStatus = TL_MODULE_STATE_INIT;
 			pControler->iCritical = 1;
 			break;
 		case TL_MODULE_TIMER:
 			pControler = calloc(1, sizeof(tl_controler_timer_t));		
 			pControler->fPktProcess = tl_controler_check_module;
-			pControler->iStatus = TL_MODULE_ERR_INIT;
+			pControler->iStatus = TL_MODULE_STATE_INIT;
 			pControler->iCritical = 0;
 			break;
 		default:
@@ -276,6 +274,25 @@ int tl_send_deadcount(uint8_t iAddress)
 	return tl_com_send_session(&(pGlobal->stPort), iAddress, TL_COM_LOCAL_VERIFY);
 }
 
+int tl_send_comtimeout(uint8_t iAddress)
+{
+	uint8_t iData;
+	tl_global_config_t *pGlobal = tl_get_global_dbase();
+	if(TL_COM_IDLE != pGlobal->stPort.iLineState)
+		return ERROR;
+	iData = pGlobal->stPort.iTimeout;
+	tl_cfg_command_set(pGlobal->stPort.arrSend, iAddress, TL_CFGID_COMTIMEOUT, &iData, 1);
+	if(TL_IS_DEBUG(TX_CFG))
+	{
+		tl_log_info("Send config Timeout %d to %d", iData, iAddress);
+		if(TL_IS_DEBUG(PKT_DUMP))
+			tl_log_info("Send packet [%s]", pGlobal->stPort.arrSend);
+	}	
+	pGlobal->stPort.iSendSize = strlen(pGlobal->stPort.arrSend);
+	return tl_com_send_session(&(pGlobal->stPort), iAddress, TL_COM_LOCAL_VERIFY);
+}
+
+
 int tl_send_controlers_config(uint8_t iAddress)
 {
  uint8_t i;
@@ -283,6 +300,7 @@ int tl_send_controlers_config(uint8_t iAddress)
  
 	tl_send_wdinterval(iAddress);
 	tl_send_deadcount(iAddress);
+	tl_send_comtimeout(iAddress);
 	if(TL_ADDRESS_BCAST == iAddress)
 	{
 		for(i=1; i<TL_MAX_CONTROLERS; i++)
@@ -331,7 +349,7 @@ int tl_update_controler_state(tl_instruction_t *pCommand)
 			pCmdState = &(pCommand->u.stCommand.state.stTimer);
 			iSize = sizeof(tl_timer_state_t);
 			if(TL_IS_DEBUG(TIMER))
-				tl_log_info("Controler %s (%d) at address %d changed its state to [%s]",
+				tl_log_info("Controler %s at address %d changed its state to [%s]",
 						pGlobal->arrDevices[iAddress]->szName, iAddress,
 						tl_timerstate2string(&(pCommand->u.stCommand.state.stTimer)));
 			break;
@@ -388,7 +406,7 @@ int tl_check_controlers(uint8_t *pAll, uint8_t *pOk, uint8_t *pFail)
 		
 		if(TL_MODULE_MASTER != pGlobal->arrDevices[i]->iType)
 			tl_ask_controler_state(i);
-		if(TL_MODULE_ERR_OK == pGlobal->arrDevices[i]->iStatus)
+		if(TL_MODULE_STATE_OK == pGlobal->arrDevices[i]->iStatus)
 			iOk++;
 		else
 			iFail++;
@@ -418,7 +436,7 @@ int tl_controlers_get_state(uint8_t *pAll, uint8_t *pOk, uint8_t *pFail)
 		if(NULL == pGlobal->arrDevices[i])
 			break;
 
-		if(TL_MODULE_ERR_OK == pGlobal->arrDevices[i]->iStatus)
+		if(TL_MODULE_STATE_OK == pGlobal->arrDevices[i]->iStatus)
 			iOk++;
 		else
 			iFail++;
@@ -435,13 +453,13 @@ int tl_controler_timeout(uint8_t iAddress)
 	tl_global_config_t *pGlobal = tl_get_global_dbase();
 	if(iAddress < TL_MAX_CONTROLERS && NULL != pGlobal->arrDevices[iAddress])
 	{
-		if(TL_MODULE_ERR_TIMEOUT != pGlobal->arrDevices[iAddress]->iStatus)
+		if(TL_MODULE_STATE_TIMEOUT != pGlobal->arrDevices[iAddress]->iStatus)
 		{
 			tl_log_error("%s for module %s at adress %d", 
-				tl_status2string(TL_MODULE_ERR_TIMEOUT), 
+				tl_status2string(TL_MODULE_STATE_TIMEOUT), 
 				pGlobal->arrDevices[iAddress]->szName, iAddress);
 		}
-		pGlobal->arrDevices[iAddress]->iStatus = TL_MODULE_ERR_TIMEOUT;
+		pGlobal->arrDevices[iAddress]->iStatus = TL_MODULE_STATE_TIMEOUT;
 		pGlobal->arrDevices[iAddress]->iErrorCount++;
 		tl_check_system_status();
 	}	
