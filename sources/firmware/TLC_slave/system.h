@@ -20,6 +20,7 @@
 /* change log:
  **
  * 15.08.2012 taa: creation
+ * 20.08.2012 taa: ++ UART_TRACE_DEFINE
  *
  *//* ************************************************************************ */
 
@@ -38,6 +39,13 @@
 
 #define DEVICE_TYPE     DEVICE_TYPE_GATEWAY
     /**< device type */
+
+
+
+#define UART_TRACE_CAN
+    /**< uncomment to enable CAN trace over UART */
+//#define CAN_TEST
+    /**< uncomment to put CAN cell in test mode */
 
 #endif
 
