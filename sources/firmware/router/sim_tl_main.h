@@ -3,6 +3,8 @@
 
 #define TL_SIM_LOG_PREFIX	"TLSIM"
 
+#define TL_SIM_MAX_DUT	3
+
 typedef struct
 {
 	thread_t	*pWDThread;	
@@ -12,8 +14,8 @@ typedef struct
 	uint32_t iTestStepDelay;
 	uint32_t iTestStepCount;
 	uint32_t iTestInProgress;
-	thread_t	*pUTThread;	
-	uint8_t iDut;
+	thread_t *pUTThread;	
+	uint8_t arrDut[TL_SIM_MAX_DUT];
 }tl_sim_global_t;
 
 typedef struct
@@ -22,10 +24,13 @@ typedef struct
 	int32_t iDeadCount;
 	int32_t iComTimeout;
 	uint8_t arrSlaves[TL_MAX_CONTROLERS];
+	uint8_t iSlavesAttached;
 	struct timeval stLastStateTime;	
 	uint32_t arrCfgReceived[TL_CFGID_SLAVES];
 	int iSimStatus;
+	uint8_t iAdaptiveStateInit;
 	int iSimSegments;
+	uint8_t iSimStatusBlock;
 }tl_sim_controler_t;
 
 tl_sim_global_t *tl_get_global_sim();

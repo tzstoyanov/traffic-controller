@@ -16,6 +16,27 @@
 typedef int (*sim_utest_hook_t)(tl_sim_global_t *pGlobal);
 int sim_tl_utest_start();
 
+int sim_utest_state_reset(tl_sim_global_t *pSim)
+{
+	int i;
+	tl_global_config_t *pDbGlobal = tl_get_global_dbase();		
+	tl_sim_controler_t *pSimControler = NULL;
+
+	for(i=1; i<TL_MAX_CONTROLERS; i++)
+	{
+		if(NULL == pDbGlobal->arrDevices[i])
+			break;	
+		pSimControler = (tl_sim_controler_t *)pDbGlobal->arrDevices[i]->pData;
+		pSimControler->iSimStatus = -1;
+		pSimControler->iSimSegments = -1;
+		pSimControler->iAdaptiveStateInit = 0;
+		pSimControler->iSimStatusBlock = 0;
+	}
+	
+	return OK;
+}
+
+
 int sim_utest_normal_init(tl_sim_global_t *pSim)
 {
 	int i;
@@ -46,82 +67,256 @@ int sim_utest_normal_step(tl_sim_global_t *pSim)
 	return TL_CONTINUE;
 }
 
-int sim_utest_timerstate_init(tl_sim_global_t *pSim)
+void sim_utest_set_init_state(tl_sim_controler_t *pSim)
+{
+	pSim->iWdInterval=0;
+	pSim->iDeadCount = 0;
+	pSim->iComTimeout = 0;
+	pSim->iSlavesAttached = 0;
+	bzero(pSim->arrSlaves, sizeof(pSim->arrSlaves));
+	pSim->iAdaptiveStateInit = 1;
+	bzero(pSim->arrCfgReceived, sizeof(pSim->arrCfgReceived));	
+	pSim->iSimStatus = TL_MODULE_STATE_INIT;	
+}
+
+int sim_utest_modulestate_init(tl_sim_global_t *pSim, uint8_t iType, uint8_t iDutId, uint8_t iState)
 {
 	int i;
 	tl_global_config_t *pDbGlobal = tl_get_global_dbase();		
 	tl_sim_controler_t *pSimControler = NULL;
 	
-	tl_log_info("");
 	for(i=1; i<TL_MAX_CONTROLERS; i++)
 	{
 		if(NULL == pDbGlobal->arrDevices[i])
 			break;	
-		if(TL_MODULE_TIMER != pDbGlobal->arrDevices[i]->iType)
+		if(iType != pDbGlobal->arrDevices[i]->iType)
 			continue; 
-		pSim->iDut = i;	
+		pSim->arrDut[iDutId] = i;	
 		pSimControler = (tl_sim_controler_t *)pDbGlobal->arrDevices[i]->pData;
-		pSimControler->iSimStatus = TL_MODULE_STATE_INIT;	
-		bzero(pSimControler->arrCfgReceived, sizeof(pSimControler->arrCfgReceived));
+		pSimControler->iSimStatusBlock = 0;
+		if(TL_MODULE_STATE_INIT == iState)
+			sim_utest_set_init_state(pSimControler);
+		else
+			pSimControler->iSimStatus = iState;				
 		break;
 	}
 
 	return OK;
 }
 
-int sim_utest_timerstate_step(tl_sim_global_t *pSim)
+int sim_utest_modulestate_step(tl_sim_global_t *pSim)
 {
-	int iRet;
+	int iRet, iDut;
+	uint8_t iDevError, iCritical, iWarning; 
+	tl_program_state_t iProgState;
 	tl_sim_controler_t *pSimControler;
 	tl_global_config_t *pDbGlobal = tl_get_global_dbase();
 	
 	if(0 == (1+pSim->iTestStepCount)%3)
-	{
-		pSimControler = (tl_sim_controler_t *)pDbGlobal->arrDevices[pSim->iDut]->pData;
-		
+	{		
+		pSimControler = (tl_sim_controler_t *)pDbGlobal->arrDevices[pSim->arrDut[0]]->pData;
 		tl_log_info_nonr("\t Status %s ... ",  tl_status2string(pSimControler->iSimStatus));
-		
-		if(TL_MODULE_STATE_OK == pSimControler->iSimStatus)
-			iRet = sim_tl_check_status(0, 0, 0, TL_PROGRAM_RUNNING);		
-		else
-			iRet = sim_tl_check_status(1, 0, 1, TL_PROGRAM_RUNNING);	
+
+		iDevError = 0;
+		iCritical = 0;
+		iWarning = 0;
+		iProgState = TL_PROGRAM_RUNNING;
+		for(iDut = 0; iDut <TL_SIM_MAX_DUT; iDut++)
+		{
+			if(! pSim->arrDut[iDut] )
+				break;
+			pSimControler = (tl_sim_controler_t *)pDbGlobal->arrDevices[pSim->arrDut[iDut]]->pData;
+
+			if(TL_MODULE_STATE_INIT == pSimControler->iSimStatus)
+			{
+				if(0 == pSimControler->arrCfgReceived[TL_CFGID_QINTERVAL-1])
+				{
+					iRet = ERROR;
+					tl_log_info("FAILED, Config qInterval not received");
+				}
+				if(0 == pSimControler->arrCfgReceived[TL_CFGID_DEADCOUNT-1])
+				{
+					iRet = ERROR;
+					tl_log_info("FAILED, Config DeadCount not received");
+				}
+				if(0 == pSimControler->arrCfgReceived[TL_CFGID_COMTIMEOUT-1])
+				{
+					iRet = ERROR;
+					tl_log_info("FAILED, Config CommTimeout not received");			
+				}
+				if(TL_MODULE_GATE != pDbGlobal->arrDevices[pSim->arrDut[iDut]]->iType)
+				{
+					if(0 != pSimControler->arrCfgReceived[TL_CFGID_SLAVES-1])
+					{
+						iRet = ERROR;
+						tl_log_info("FAILED, Config Slaves received");				
+					}
+				}
+				else
+				{
+					if(0 == pSimControler->arrCfgReceived[TL_CFGID_SLAVES-1])
+					{
+						iRet = ERROR;
+						tl_log_info("FAILED, Config Slaves not received");			
+					}				
+				}				
+			}
+			
+			if(	TL_MODULE_STATE_OK == pSimControler->iSimStatus || 
+				TL_MODULE_STATE_INIT == pSimControler->iSimStatus)
+			{
+				/* default values */				
+			}else if(!pDbGlobal->arrDevices[pSim->arrDut[iDut]]->iCritical || 
+					TL_MODULE_STATE_HW_WARN == pSimControler->iSimStatus)
+			{
+				iDevError++;
+				iWarning++;			
+			}
+			else
+			{
+				iDevError++;
+				iCritical++;
+				iProgState = TL_PROGRAM_PAUSE;				
+			}
+			pSimControler->iSimStatus++;
+			if(TL_MODULE_STATE_MISMATCH == pSimControler->iSimStatus)
+				pSimControler->iSimStatus = TL_MODULE_STATE_OK;	
+			if(TL_MODULE_STATE_INIT == pSimControler->iSimStatus)
+				sim_utest_set_init_state(pSimControler);
+		}
+		iRet = sim_tl_check_status(iDevError, iCritical, iWarning, iProgState);			
 		if(OK != iRet)
 			tl_log_info("FAILED, unexpected system state");
 
-		if(TL_MODULE_STATE_INIT == pSimControler->iSimStatus)
-		{
-			if(0 == pSimControler->arrCfgReceived[TL_CFGID_QINTERVAL-1])
-			{
-				iRet = ERROR;
-				tl_log_info("FAILED, Config qInterval not received");
-			}
-			if(0 == pSimControler->arrCfgReceived[TL_CFGID_DEADCOUNT-1])
-			{
-				iRet = ERROR;
-				tl_log_info("FAILED, Config DeadCount not received");
-			}
-			if(0 == pSimControler->arrCfgReceived[TL_CFGID_COMTIMEOUT-1])
-			{
-				iRet = ERROR;
-				tl_log_info("FAILED, Config CommTimeout not received");			
-			}
-			if(0 != pSimControler->arrCfgReceived[TL_CFGID_SLAVES-1])
-			{
-				iRet = ERROR;
-				tl_log_info("FAILED, Config Slaves not received");				
-			}		
-		}
+
 		if(OK == iRet)
 			tl_log_info("PASSED");
-		pSimControler->iSimStatus++;
-		if(TL_MODULE_STATE_MISMATCH == pSimControler->iSimStatus)
-			pSimControler->iSimStatus = TL_MODULE_STATE_OK;	
+
+		pSimControler = (tl_sim_controler_t *)pDbGlobal->arrDevices[pSim->arrDut[0]]->pData;
 		if(TL_MODULE_STATE_INIT == pSimControler->iSimStatus)
 		{
 			pSimControler->iSimStatus = -1;	
 			return OK;
 		}	
 	}
+	return TL_CONTINUE;
+}
+
+int sim_utest_timerstate_init(tl_sim_global_t *pSim)
+{
+	bzero( pSim->arrDut, sizeof(pSim->arrDut));
+	tl_log_info("");
+	return sim_utest_modulestate_init(pSim, TL_MODULE_TIMER, 0, TL_MODULE_STATE_INIT);
+}
+
+int sim_utest_lampstate_init(tl_sim_global_t *pSim)
+{
+	bzero( pSim->arrDut, sizeof(pSim->arrDut));
+	tl_log_info("");
+	return sim_utest_modulestate_init(pSim, TL_MODULE_LAMP, 0, TL_MODULE_STATE_INIT);
+}
+
+int sim_utest_gatestate_init(tl_sim_global_t *pSim)
+{
+	bzero( pSim->arrDut, sizeof(pSim->arrDut));
+	tl_log_info("");	
+	return sim_utest_modulestate_init(pSim, TL_MODULE_GATE, 0, TL_MODULE_STATE_INIT);
+}
+
+int sim_utest_mixstate_init(tl_sim_global_t *pSim)
+{
+	bzero( pSim->arrDut, sizeof(pSim->arrDut));
+	tl_log_info("");
+	sim_utest_modulestate_init(pSim, TL_MODULE_GATE, 0, TL_MODULE_STATE_INIT);
+	sim_utest_modulestate_init(pSim, TL_MODULE_TIMER, 1, TL_MODULE_STATE_HW_ERR);	
+	sim_utest_modulestate_init(pSim, TL_MODULE_LAMP, 2, TL_MODULE_STATE_HW_WARN);	
+	return OK;
+}
+
+int sim_utest_gatenoreply_init(tl_sim_global_t *pSim, uint8_t iCritical)
+{
+	int i;
+	tl_global_config_t *pDbGlobal = tl_get_global_dbase();
+	tl_sim_controler_t *pSimControler = NULL;
+
+	tl_log_info("");
+	pSim->arrDut[0] = 0;
+	for(i=1; i<TL_MAX_CONTROLERS; i++)
+	{
+		if(NULL == pDbGlobal->arrDevices[i])
+			break;	
+		if(TL_MODULE_GATE != pDbGlobal->arrDevices[i]->iType)
+			continue; 
+		if((iCritical && 0 == pDbGlobal->arrDevices[i]->iCritical) ||
+			(0 == iCritical && pDbGlobal->arrDevices[i]->iCritical))
+			continue;	
+			
+		pSim->arrDut[0] = i;
+		pSimControler = (tl_sim_controler_t *)pDbGlobal->arrDevices[i]->pData;
+		pSimControler->iSimStatusBlock = 0;
+		pSimControler->iSimStatus = TL_MODULE_STATE_OK;
+	}
+	return OK;
+}
+
+int sim_utest_gatenoreply_critical_init(tl_sim_global_t *pSim)
+{
+	return sim_utest_gatenoreply_init(pSim, 1);
+}
+
+int sim_utest_gatenoreply_noncritical_init(tl_sim_global_t *pSim)
+{
+	return sim_utest_gatenoreply_init(pSim, 0);
+}
+
+int sim_utest_gatenoreply_step(tl_sim_global_t *pSim)
+{
+	uint8_t iDevError, iCritical, iWarning; 
+	tl_program_state_t iProgState;
+	tl_sim_controler_t *pSimControler;
+	tl_global_config_t *pDbGlobal = tl_get_global_dbase();
+	
+	if(0 == pSim->arrDut[0])
+	{
+		tl_log_info("FAILED, No suitable configuration in system config file");
+		return OK;
+	}
+	
+	if(3 == pSim->iTestStepCount)
+	{
+		if(OK != sim_tl_check_status(0, 0, 0, TL_PROGRAM_RUNNING))
+		{
+			tl_log_info("FAILED, unexpected system state");
+			return OK;
+		}
+		pSimControler = (tl_sim_controler_t *)pDbGlobal->arrDevices[pSim->arrDut[0]]->pData;
+		pSimControler->iSimStatusBlock = 1;
+	}
+	else if(6 == pSim->iTestStepCount)
+	{
+		pSimControler = (tl_sim_controler_t *)pDbGlobal->arrDevices[pSim->arrDut[0]]->pData;
+		iDevError = pSimControler->iSlavesAttached + 1;
+		iCritical = 0;
+		iWarning = 0;
+		iProgState = TL_PROGRAM_RUNNING;
+		if(pDbGlobal->arrDevices[pSim->arrDut[0]]->iCritical)
+		{
+			iCritical = iDevError;
+			iProgState = TL_PROGRAM_PAUSE;
+		}else
+			iWarning = iDevError;
+
+		if(OK != sim_tl_check_status(iDevError, iCritical, iWarning, iProgState))
+			tl_log_info("FAILED, unexpected system state");
+		else	
+			tl_log_info("PASSED");
+			
+		return OK;	
+	}else if( 6 < pSim->iTestStepCount)
+	{
+		return OK;
+	}
+	
 	return TL_CONTINUE;
 }
 
@@ -132,7 +327,12 @@ struct
 	char *szTestName;
 }arrSimUtest[]={
 	{sim_utest_normal_init, sim_utest_normal_step, "Normal operation"},
-	{sim_utest_timerstate_init, sim_utest_timerstate_step, "Timer Status Change"}
+	{sim_utest_timerstate_init, sim_utest_modulestate_step, "Timer Status Change"},
+	{sim_utest_lampstate_init, sim_utest_modulestate_step, "Lamp Status Change"},
+	{sim_utest_gatestate_init, sim_utest_modulestate_step, "Gateway Status Change"},
+	{sim_utest_mixstate_init, sim_utest_modulestate_step, "Mixed Modules Status Change"},
+	{sim_utest_gatenoreply_critical_init, sim_utest_gatenoreply_step, "Critical gate no reply"},	
+	{sim_utest_gatenoreply_noncritical_init, sim_utest_gatenoreply_step, "Non Critical gate no reply"}	
 };
 
 int32_t sim_tl_utest_step(thread_t *pThread)
@@ -169,6 +369,7 @@ int sim_tl_utest_start()
 	tl_sim_global_t *pSim = tl_get_global_sim();
 	
 	tl_log_info_nonr("Starting test [%s]", arrSimUtest[pSim->iTestInProgress].szTestName);
+	sim_utest_state_reset(pSim);
 	arrSimUtest[pSim->iTestInProgress].fHookInit(pSim);
 
 	pSim->pUTThread = thread_timer_add(&(pSim->stMaintThread), 
@@ -185,7 +386,7 @@ int sim_tl_utest_init()
 	if(0 == pGlobal->iUtest || 0 == iTestsCount)
 		return OK;
 		
-	tl_log_info("Start %d unit tests", iTestsCount);
+	tl_log_info("%d unit tests loaded", iTestsCount);
 	tl_debug_switch_set(0);
 	pGlobal->iTestStepDelay = pDbGlobal->iWdInterval;
 	pGlobal->iTestInProgress=0;

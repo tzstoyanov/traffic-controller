@@ -16,6 +16,7 @@ static tl_global_t stGlobal;
 
 void print_help(char *pPname)
 {
+	tl_log_info("[%s]; %s %s", MODULE_VERSION, __DATE__, __TIME__);
 	tl_log_info("Usage: %s [OPIONS]", pPname);
 	tl_log_info("\t-h, --help\t\tHelp");
 	tl_log_info("\t-v, --version\t\tVersion information");

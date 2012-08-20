@@ -123,8 +123,7 @@ int tl_controler_check_gate(uint8_t iAddress, t_can_packet_t *pPacket)
 	if(pPacket->iLen < 2)
 		return ERROR;
 		
-	if(OK != tl_controler_check_common(pPacket->arrData))
-		return ERROR;
+	tl_controler_check_common(pPacket->arrData);
 	i = 2;
 	iSize -= 2;
 	while(iSize >=2)

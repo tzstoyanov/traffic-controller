@@ -12,6 +12,22 @@
 #include "lib_tl_packets.h"
 #include "sim_tl_main.h"
 
+void sim_gate_add_slave(tl_sim_controler_t *pSim, uint8_t iSlaveId)
+{
+	int i;
+	
+	for(i=0; i<TL_MAX_CONTROLERS; i++ )
+	{
+		if(iSlaveId == pSim->arrSlaves[i])
+			return;
+		if(0 == pSim->arrSlaves[i])	
+		{
+			pSim->arrSlaves[pSim->iSlavesAttached++] = iSlaveId;
+			return;
+		}
+	}
+}
+
 int tl_controler_config_tlv(tl_controler_t *pControler, uint8_t iCfgId, uint8_t iCfgLen, uint8_t *pData)
 {
 	uint8_t i=0, iCfgOk;
@@ -47,10 +63,10 @@ int tl_controler_config_tlv(tl_controler_t *pControler, uint8_t iCfgId, uint8_t 
 			if(TL_MODULE_GATE != pControler->iType)
 				return ERROR;
 			pSim->arrCfgReceived[TL_CFGID_SLAVES-1]++;	
+			i = 0;
 			while(iCfgLen)
 			{
-				pSim->arrSlaves[i] = pData[i];
-				i++;
+				sim_gate_add_slave(pSim, pData[i++]);
 				iCfgLen--;
 			}
 			break;
@@ -68,7 +84,11 @@ int tl_controler_config_tlv(tl_controler_t *pControler, uint8_t iCfgId, uint8_t 
 		&& 0 == pSim->arrSlaves[0])
 		iCfgOk=0;
 	if(iCfgOk)
+	{
 		pControler->iStatus = TL_MODULE_STATE_OK;
+		if(pSim->iAdaptiveStateInit)
+			pSim->iAdaptiveStateInit++;
+	}
 	return OK;		
 }
 

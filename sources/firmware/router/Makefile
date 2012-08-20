@@ -33,6 +33,8 @@ CFLAGS = -Wall -Werror -g -I. -I../common
 
 endif
 
+CFLAGS += -DMODULE_VERSION="\"$(shell $(shell which cat) ver.txt)"\"
+
 APP_NAME = tlight
 APP_FILES = linux_thread linux_sem tl_main tl_controlers \
 			tl_program tl_program_cfg tl_api tl_serial \
