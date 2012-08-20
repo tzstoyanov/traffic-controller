@@ -43,13 +43,25 @@ int sim_tl_check_status(uint8_t iDevError, uint8_t iCritical,
 	if(OK == sim_tl_get_status(&stStatus))
 	{
 			if(iDevError != stStatus.iDeviceError)
+			{
+				tl_log_info("Dev error %d != %d", iDevError, stStatus.iDeviceError);
 				return ERROR;
+			}
 			if(iCritical != stStatus.iCritError)
+			{
+				tl_log_info("Crit error %d != %d", iCritical, stStatus.iCritError);			
 				return ERROR;
+			}
 			if(iWarning != stStatus.iWarning)
+			{
+				tl_log_info("Warning %d != %d", iWarning, stStatus.iWarning);					
 				return ERROR;
+			}
 			if(iProgState != stStatus.iProgState) 
+			{
+				tl_log_info("Program %d != %d", iProgState, stStatus.iProgState);						
 				return ERROR;		
+			}
 		return OK;		
 	}
 	return ERROR;
