@@ -51,7 +51,6 @@
       <includepath path="LPC111x_Lib"/>
       <includepath path="LPC111x_Lib/include"/>
       <includepath path="cmsis_lpc11xx"/>
-      <includepath path="semihosting"/>
       <includepath path="LIB"/>
       <includepath path="OS"/>
       <includepath path="SYS"/>

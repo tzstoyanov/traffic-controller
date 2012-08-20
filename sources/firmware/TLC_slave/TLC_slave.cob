@@ -6,8 +6,6 @@
   </Device>
   <Components>
     <Component id="c37a9351-96ed-11df-80ae-001d7d723e56" name="C Library"/>
-    <Component id="c37f2731-96ed-11df-80ae-001d7d723e56" name="Retarget printf"/>
-    <Component id="49305350-fa01-11e0-ac6f-001d0f27e54d" name="Semihosting"/>
     <Component id="bfabb101-96ed-11df-80ae-001d7d723e56" name="M0 Cmsis Core"/>
     <Component id="c22f0080-96ed-11df-80ae-001d7d723e56" name="Cmsis Boot"/>
     <Component id="c2cc51f1-96ed-11df-80ae-001d7d723e56" name="Common Header Files"/>

@@ -28,7 +28,6 @@
 						<entry flags="" kind="includePath" name="LPC111x_Lib"/>
 						<entry flags="" kind="includePath" name="LPC111x_Lib/include"/>
 						<entry flags="" kind="includePath" name="OS"/>
-						<entry flags="" kind="includePath" name="semihosting"/>
 						<entry flags="" kind="includePath" name="SYS"/>
 						<entry flags="" kind="macro" name="__GNUC__" value=""/>
 						<entry flags="" kind="macro" name="TLC_SLAVE" value=""/>
@@ -55,7 +54,6 @@
 				<pathentry include="D:/Work/projects/TLC/04-Software/git/sources/firmware/TLC_slave/LPC111x_Lib" kind="inc" path="" system="true"/>
 				<pathentry include="D:/Work/projects/TLC/04-Software/git/sources/firmware/TLC_slave/LPC111x_Lib/include" kind="inc" path="" system="true"/>
 				<pathentry include="D:/Work/projects/TLC/04-Software/git/sources/firmware/TLC_slave/OS" kind="inc" path="" system="true"/>
-				<pathentry include="D:/Work/projects/TLC/04-Software/git/sources/firmware/TLC_slave/semihosting" kind="inc" path="" system="true"/>
 				<pathentry include="D:/Work/projects/TLC/04-Software/git/sources/firmware/TLC_slave/SYS" kind="inc" path="" system="true"/>
 				<pathentry kind="mac" name="__GNUC__" path="" value=""/>
 				<pathentry kind="mac" name="TLC_SLAVE" path="" value=""/>
