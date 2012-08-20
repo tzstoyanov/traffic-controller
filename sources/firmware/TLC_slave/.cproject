@@ -22,6 +22,7 @@
 						<entry flags="" kind="includePath" name="cmsis_core"/>
 						<entry flags="" kind="includePath" name="cmsis_lpc11xx"/>
 						<entry flags="" kind="includePath" name="DRV/CAN"/>
+						<entry flags="" kind="includePath" name="DRV/DIO"/>
 						<entry flags="" kind="includePath" name="DRV/LIN"/>
 						<entry flags="" kind="includePath" name="DRV/NVRAM"/>
 						<entry flags="" kind="includePath" name="LIB"/>
@@ -48,6 +49,7 @@
 				<pathentry include="D:/Work/projects/TLC/04-Software/git/sources/firmware/TLC_slave/cmsis_core" kind="inc" path="" system="true"/>
 				<pathentry include="D:/Work/projects/TLC/04-Software/git/sources/firmware/TLC_slave/cmsis_lpc11xx" kind="inc" path="" system="true"/>
 				<pathentry include="D:/Work/projects/TLC/04-Software/git/sources/firmware/TLC_slave/DRV/CAN" kind="inc" path="" system="true"/>
+				<pathentry include="D:/Work/projects/TLC/04-Software/git/sources/firmware/TLC_slave/DRV/DIO" kind="inc" path="" system="true"/>
 				<pathentry include="D:/Work/projects/TLC/04-Software/git/sources/firmware/TLC_slave/DRV/LIN" kind="inc" path="" system="true"/>
 				<pathentry include="D:/Work/projects/TLC/04-Software/git/sources/firmware/TLC_slave/DRV/NVRAM" kind="inc" path="" system="true"/>
 				<pathentry include="D:/Work/projects/TLC/04-Software/git/sources/firmware/TLC_slave/LIB" kind="inc" path="" system="true"/>

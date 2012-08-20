@@ -61,7 +61,7 @@ static tLampData LampData;
  *
  *//* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-void lamp_init(void)
+void appl_init(void)
 {
     LampData.DeviceId = nvram_get_u8DeviceId();
     LampData.ErrByte.Error = TLC_ERROR_INIT;
@@ -131,6 +131,11 @@ void appl_can_rx_handler(tCanMsg * pCanMsg)
     }
 }
 
+
+void appl_task(void)
+{
+
+}
 #endif
 /**    @}
  * @}

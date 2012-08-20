@@ -59,6 +59,7 @@
       <includepath path="DRV\CAN"/>
       <includepath path="DRV\NVRAM"/>
       <includepath path="APPL"/>
+      <includepath path="DRV\DIO"/>
       
       <!-- arm-none-eabi-gcc compiler arguments -->
       <compilerarg value="-mcpu=cortex-m0"/>
