@@ -10,8 +10,8 @@
 
 #include "system.h"
 
-
 #if DEVICE_TYPE == DEVICE_TYPE_GATEWAY
+
 #include "types.h"
 #include "lin.h"
 #include "can.h"
@@ -19,6 +19,7 @@
 #include "assert.h"
 #include "lpc11xx_gpio.h"
 #include "nvram.h"
+#include "os.h"
 
 /*
  * local defines
@@ -62,16 +63,26 @@ typedef struct
     U8 Id;
     U8 Status;
     U8 ErrorCnt;
+    U8 Request;
     bool Timeout;
 } tSlaveDevice;
 
 typedef struct
 {
-    U8 DeviceId;
-    U8 WDCounter;
+    U16 WDCounter;
     U8 SlaveCount;
     U8 WDInterval;
+    U8 DeviceId;
+    U8 State;
+    U8 DeadCount;
+    U8 RespCnt;
+    U8 RouterId;
+    bool ResponseRequest;
 } tGWData;
+
+#define mCanBuildId(CMD, ADDR)  ((((U16)(CMD)) << 8)+(U8)(ADDR))
+#define mCanExtractCmd(ID)      (((ID)>>8) & 0x07)
+#define mCanExtractAddr(ID)     (U8)(ID)
 
 /*
  * local variables
@@ -144,6 +155,46 @@ static bool gw_decode(tLINMsg * pLINMsg, tMessage * pMessage)
     return Result;
 }
 
+static void gw_code( tMessage * pMessage, tLINMsg * pLINMsg)
+{
+    static U8 H2A[16] = {'0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'};
+    U8 index;
+    U8 part;
+
+    index = 0;
+    pLINMsg->Data[index] = H2A[pMessage->Command & 0x0F];
+    index ++;
+    pLINMsg->Data[index] = H2A[pMessage->Address >> 4];
+    index ++;
+    pLINMsg->Data[index] = H2A[pMessage->Address & 0x0F];
+    index ++;
+    pLINMsg->Data[index] = H2A[pMessage->Len & 0x0F];
+    index ++;
+    for (part = 0; part < (pMessage->Len & 0x0F); part++)
+    {
+        pLINMsg->Data[index] = H2A[pMessage->Data[part]>>4];
+        index++;
+        pLINMsg->Data[index] = H2A[pMessage->Data[part] & 0x0F];
+        index++;
+    }
+    pLINMsg->Len = index;
+}
+
+/**
+ * \fn static gw_add_slave(U8 Id)
+ *
+ * add slave to be monitored
+ *
+ *
+ * \param  [in] Id : U8 - slave id
+ * \return none
+ * \pre    component is initialized
+ *
+ * Uses    : GWData, Devices \n
+ * Changes : GWdata, Devices
+ *
+ *//* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
 static gw_add_slave(U8 Id)
 {
     U16 index;
@@ -176,8 +227,76 @@ static gw_add_slave(U8 Id)
     }
 }
 
+/**
+ * \fn static gw_remove_slave(U8 Id)
+ *
+ * remove device id from device buffer
+ *
+ * \param  [in] Id : U8 - slave id
+ * \return none
+ * \pre    component is initialized
+ *
+ * Uses    : <USES> \n
+ * Changes : <CHANGES>
+ *
+ *//* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 static gw_remove_slave(U8 Id)
 {
+    U16 index;
+    bool found = FALSE;
+
+    if (TLC_ADDR_INVALID == Id)
+    { //remove all devices
+        GWData.SlaveCount = 0;
+        DEBUG_TRACE("-- all");
+    }
+    else
+    {
+        for (index = 0; (index<GWData.SlaveCount) && !found; index++)
+        {
+            if (Id == Devices[index].Id)
+            {
+                found = TRUE;
+            }
+        }
+
+        if ((!found) && (GWData.SlaveCount < cGWMaxDevices))
+        {
+            Devices[index].Id       = 0;
+            DEBUG_TRACE_U8("-- ", Id);
+        }
+    }
+}
+
+static gw_respond(void)
+{
+    tMessage CanMsg;
+    tLINMsg  LinMsg;
+    U8 index;
+
+    if (FALSE != GWData.ResponseRequest)
+    { // there is something to report
+        index = 0;
+        if (0 == GWData.RespCnt)
+        { //insert GW state
+            CanMsg.Data[0] = GWData.DeviceId;
+            CanMsg.Data[1] = GWData.State;
+            index +=2;
+        }
+        while ((index < 8) && (GWData.RespCnt < GWData.SlaveCount))
+        { // add module state
+            CanMsg.Data[index]   = Devices[GWData.RespCnt].Id;
+            CanMsg.Data[index+1] = Devices[GWData.RespCnt].Status;
+            index +=2;
+            GWData.RespCnt++;
+        }
+        CanMsg.Len = index;
+        CanMsg.ID =
+            mCanBuildId((GWData.RespCnt < GWData.SlaveCount) ? (TLC_CMD_WD_RESP_FRAG): (TLC_CMD_WD_RESP), GWData.RouterId);
+        gw_code(&CanMsg, &LinMsg);
+        lin_send(&LinMsg);
+        GWData.ResponseRequest = (GWData.RespCnt < GWData.SlaveCount);
+    }
 }
 
 /**
@@ -200,7 +319,6 @@ static void gw_command(tMessage * pMsg)
     U8 index = 0;
     U8 state = 0;
 
-
     switch (pMsg->Command)
     {
         case TLC_CMD_CONFIG:
@@ -214,7 +332,7 @@ static void gw_command(tMessage * pMsg)
                 if (   (TLC_CFG_QUERY_INTERVAL == param)
                     && (1 == length)
                     )
-                { // query interval
+                { // query interval, 10ms resolution
                     if ((index+1) < pMsg->Len)
                     {
                         GWData.WDInterval = pMsg->Data[index+1];
@@ -230,22 +348,35 @@ static void gw_command(tMessage * pMsg)
                         gw_add_slave(pMsg->Data[index+1]);
                     }
                 }
-                else if (    (TLC_CFG_SUB_MODULES_REMOVE == param)
+                else if (    (TLC_CFG_DEAD_COUNT == param)
                           && (1 == length)
                          )
-                { // add device
-                    if ((index+1) < pMsg->Len)
-                    {
-                        gw_remove_slave(pMsg->Data[index+1]);
-                    }
+                { // configure dead counter
+                    // TODO
                 }
+                else if (    (TLC_CFG_COMM_TIMEOUT == param)
+                          && (1 == length)
+                         )
+                { // configure communication timeout, 1ms resolution
+                    // TODO
+                }
+
                 index +=length+1;
             }
+            // TODO: call compact
+
+            GWData.RespCnt = GWData.SlaveCount;
+            GWData.State = 0x20;
             break;
 
         case TLC_CMD_WD_REQ:
             // state request
-
+            if (1 == pMsg->Len)
+            {
+                GWData.RespCnt = 0;
+                GWData.RouterId = pMsg->Data[0];
+                GWData.ResponseRequest = TRUE;
+            }
             break;
 
         default:
@@ -257,23 +388,26 @@ static void gw_command(tMessage * pMsg)
 
 void appl_can_rx_handler(tCanMsg * pCanMsg)
 {
-//    if (   (((pCanMsg->ID & 0x700)>>8) == TLC_CMD_STATE)
-//        && ((pCanMsg->ID & 0x0FF)      == TLC_ID)
-//        && (pCanMsg->Length == 1)
-//        )
-//    {
-//        if (((pCanMsg->Data[0] & 0xE0)>>5) == TLC_TYPE_LAMP)
-//        {
-//            if ((pCanMsg->Data[0] & 0x01) == 0)
-//            {
-//                GPIO_SetBits(PORT1, GPIO_Pin_9);
-//            }
-//            else
-//            {
-//                GPIO_ResetBits(PORT1, GPIO_Pin_9);
-//            }
-//        }
-//    }
+    U16  index;
+    bool found;
+
+    if (   (mCanExtractCmd(pCanMsg->ID)  == TLC_CMD_WD_RESP)
+        && (mCanExtractAddr(pCanMsg->ID) == GWData.DeviceId)
+        && (pCanMsg->Length == 3)
+        )
+    { // state response received
+
+        found = FALSE;
+        for (index=0; (index<GWData.SlaveCount) && (!found); index++)
+        {
+            if (Devices[index].Id == pCanMsg->Data[0])
+            {
+                Devices[index].Timeout = FALSE;
+                Devices[index].Status  = pCanMsg->Data[1];
+                found = TRUE;
+            }
+        }
+    }
 }
 
 /**
@@ -295,6 +429,11 @@ void gw_init(void)
     GWData.DeviceId = nvram_get_u8DeviceId();
     lin_init();
     can_init();
+    OSSetPeriodicAlarm(cOS_TaskId_GWTask, 2);
+
+    GWData.DeadCount  = 3;
+    GWData.WDInterval = 10;
+    GWData.State      = 0x21;   // type:GW, state: ok, error: Init
 }
 
 /**
@@ -313,7 +452,9 @@ void gw_init(void)
 
 void gw_lin_reception(tLINMsg * pLINMsg)
 {
-    static tMessage Msg;
+    tMessage Msg;
+    U16 index;
+    bool found;
 
     if (NULL != pLINMsg)
     {
@@ -325,13 +466,79 @@ void gw_lin_reception(tLINMsg * pLINMsg)
             }
             else
             { // send CAN frame
-                can_send(&Msg);
+                found = FALSE;
+                for (index=0; (index<GWData.SlaveCount)&&(!found); index++ )
+                {
+                    if (Devices[index].Id == Msg.Address)
+                    {
+                        found = TRUE;
+                    }
+                }
+                if (FALSE != found)
+                {
+                    can_send(&Msg);
+                }
             }
         }
     }
     else
     {
         Assert(FALSE,"null ptr");
+    }
+}
+
+/**
+ * \fn void gw_task(void)
+ *
+ * GW periodic task
+ *
+ * \param  none
+ * \return none
+ * \pre    none
+ *
+ * Uses    : <USES> \n
+ * Changes : <CHANGES>
+ *
+ *//* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+void gw_task(void)
+{
+    tCanMsg CanMsg;
+    U16 index;
+
+    gw_respond();
+
+    GWData.WDCounter++;
+    if (GWData.WDCounter >= (U16)GWData.WDInterval)
+    { // query interval
+
+        for (index=0; index<GWData.SlaveCount; index++)
+        {
+            if (TRUE == Devices[index].Timeout)
+            { // no response from device in this query interval
+                if (Devices[index].ErrorCnt >= GWData.DeadCount)
+                { // device is failed
+                    Devices[index].Status = TLC_ERROR_TIMEOUT;
+                }
+                else
+                {
+                    Devices[index].ErrorCnt++;
+                }
+            }
+        }
+
+        // request new state
+        for (index=0; index<GWData.SlaveCount; index++)
+        {
+            Devices[index].Timeout = TRUE;
+        }
+
+        CanMsg.ID = mCanBuildId(TLC_CMD_WD_REQ, TLC_ADDR_ALL);
+        CanMsg.Length = 1;
+        CanMsg.Data[0] = GWData.DeviceId;
+
+        can_send(&CanMsg);
+        GWData.WDCounter = 0;
     }
 }
 

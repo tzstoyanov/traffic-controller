@@ -22,8 +22,9 @@
  * config FRAME: <<001><address>> <len:4> [<cfg:4><len:4> <data:0-56>]
  */
 #define TLC_CFG_QUERY_INTERVAL      1
-#define TLC_CFG_SUB_MODULES_ADD     2
-#define TLC_CFG_SUB_MODULES_REMOVE  3
+#define TLC_CFG_DEAD_COUNT          2
+#define TLC_CFG_COMM_TIMEOUT        3
+#define TLC_CFG_SUB_MODULES_ADD     4
 
 /*
  * config param QUERY_INTERVAL: <0001> <0001> <query_interval>
@@ -71,8 +72,10 @@
 #define TLC_ERROR_OK        0
 #define TLC_ERROR_INIT      1
 #define TLC_ERROR_OUTPUT    2
-#define TLC_ERROR_COMM      3       // ?!?
-#define TLC_ERROR_SLAVE     4       // ?!?
-#define TLC_ERROR_TIMEOUT   5
+
+#define TLC_ERROR_COMM      4
+#define TLC_ERROR_SLAVE     5
+#define TLC_ERROR_TIMEOUT   6
+#define TLC_ERROR_MISMATCH  7
 
 #endif

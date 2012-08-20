@@ -18,6 +18,7 @@
 /* change log:
  **
  * 16.08.2012 taa: creation
+ * 20.08.2012 taa: UART_TRACE_CAN moved to system.h
  *
  *//* ************************************************************************ */
 
@@ -40,10 +41,6 @@
  * local defines
  */
 
-#define UART_TRACE_CAN
-    /**< uncomment to enable CAN trace over UART */
-//#define CAN_TEST
-    /**< uncomment to put CAN cell in test mode */
 
 #define cCanMaxErrorCounterValue    0xFFFF
 
