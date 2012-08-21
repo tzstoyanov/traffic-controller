@@ -38,7 +38,8 @@
 #define TL_MODULE_STATE_HW_WARN		3	/* Module State Hardware Warning */
 #define TL_MODULE_STATE_COMM_ERR	4	/* Module State Communication Error */
 #define TL_MODULE_STATE_TIMEOUT		5	/* Module State Timeout */
-#define TL_MODULE_STATE_MISMATCH	6	/* Module State Segments State Mismatch */
+#define TL_MODULE_STATE_FAILSAFE	6	/* Module is in FailSafe State */
+#define TL_MODULE_STATE_MISMATCH	7	/* Module State Segments State Mismatch */
 
 #define TL_PKT_START	':'		/* Start Packet symbol, used in serial port communicaion */
 #define TL_PKT_END		';'		/* End Packet symbol, used in serial port communicaion */
