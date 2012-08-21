@@ -282,6 +282,7 @@ int sim_utest_gatenoreply_init(tl_sim_global_t *pSim, uint8_t iCritical)
 		pSimControler = (tl_sim_controler_t *)pDbGlobal->arrDevices[i]->pData;
 		pSimControler->iSimStatusBlock = 0;
 		sim_utest_set_init_state(pSimControler);
+		break;
 	}
 	return OK;
 }
@@ -337,18 +338,93 @@ int sim_utest_gatenoreply_step(tl_sim_global_t *pSim)
 			iDevError = pSimControler->iSlavesAttached + 1;
 			iWarning = iDevError;
 		}
+		
 		if(OK != sim_tl_check_status(iDevError, iCritical, iWarning, iProgState))
+		{
+			tl_log_info(" ... FAILED, unexpected system state");
+			return OK;
+		}
+		
+		pSimControler->iSimStatusBlock = 0;	
+	}else if( 12 == pSim->iTestStepCount)
+	{
+		if(OK != sim_tl_check_status(0, 0, 0, TL_PROGRAM_RUNNING))
 			tl_log_info(" ... FAILED, unexpected system state");
 		else	
 			tl_log_info(" ... PASSED");
 			
 		return OK;	
-	}else if( 8 < pSim->iTestStepCount)
+	} else if( 12 < pSim->iTestStepCount)
+		return OK;
+	
+	return TL_CONTINUE;
+}
+
+int sim_utest_lamp_mismatch_step(tl_sim_global_t *pSim)
+{
+	uint8_t iError;
+	tl_sim_controler_t *pSimControler;
+	tl_global_config_t *pDbGlobal = tl_get_global_dbase();
+	
+	if(0 == pSim->arrDut[0])
 	{
+		tl_log_info(" ... FAILED, No suitable configuration in system config file");
 		return OK;
 	}
 	
+	if(4 == pSim->iTestStepCount)
+	{
+		if(OK != sim_tl_check_status(0, 0, 0, TL_PROGRAM_RUNNING))
+		{
+			tl_log_info(" ... FAILED, unexpected system state");
+			return OK;
+		}
+		pSimControler = (tl_sim_controler_t *)pDbGlobal->arrDevices[pSim->arrDut[0]]->pData;
+		pSimControler->iSimSegments = 0x0F;
+		pSimControler->iSimStatus = TL_MODULE_STATE_OK;
+	}
+	else if(8 == pSim->iTestStepCount)
+	{
+		pSimControler = (tl_sim_controler_t *)pDbGlobal->arrDevices[pSim->arrDut[0]]->pData;
+		iError = pSim->iLampCount + pSim->iTimerCount;
+		if(OK != sim_tl_check_status(iError, 1, iError - 1, TL_PROGRAM_PAUSE))
+		{		
+			tl_log_info(" ... FAILED, unexpected system state");
+			return OK;	
+		}	
+		pSimControler->iSimSegments = -1;
+		pSimControler->iSimStatus = -1;
+		pDbGlobal->arrDevices[pSim->arrDut[0]]->iStatus = TL_MODULE_STATE_OK;
+		
+	}else if( 12 == pSim->iTestStepCount)
+	{
+		if(OK != sim_tl_check_status(0, 0, 0, TL_PROGRAM_RUNNING))
+			tl_log_info(" ... FAILED, unexpected system state");
+		else	
+			tl_log_info(" ... PASSED");
+		return OK;
+	}else if(12 < pSim->iTestStepCount)
+		return OK;
 	return TL_CONTINUE;
+}
+
+int sim_utest_lamp_mismatch_init(tl_sim_global_t *pSim)
+{
+	int i;
+	tl_global_config_t *pDbGlobal = tl_get_global_dbase();
+
+	pSim->arrDut[0] = 0;
+	for(i=1; i<TL_MAX_CONTROLERS; i++)
+	{
+		if(NULL == pDbGlobal->arrDevices[i])
+			break;	
+		if(TL_MODULE_LAMP != pDbGlobal->arrDevices[i]->iType)
+			continue; 
+			
+		pSim->arrDut[0] = i;
+		break;
+	}
+	return OK;
 }
 
 struct
@@ -357,13 +433,14 @@ struct
 	sim_utest_hook_t fHookStep;
 	char *szTestName;
 }arrSimUtest[]={
-	{sim_utest_normal_init, sim_utest_normal_step, "Normal operation"},
-	{sim_utest_timerstate_init, sim_utest_modulestate_step, "Timer Status Change"},
-	{sim_utest_lampstate_init, sim_utest_modulestate_step, "Lamp Status Change"},
-	{sim_utest_gatestate_init, sim_utest_modulestate_step, "Gateway Status Change"},
-	{sim_utest_mixstate_init, sim_utest_modulestate_step, "Mixed Modules Status Change"},
-	{sim_utest_gatenoreply_critical_init, sim_utest_gatenoreply_step, "Critical gate no reply"},
-	{sim_utest_gatenoreply_noncritical_init, sim_utest_gatenoreply_step, "Non Critical gate no reply"}
+	{ sim_utest_normal_init, sim_utest_normal_step, "Normal operation" },
+	{ sim_utest_timerstate_init, sim_utest_modulestate_step, "Timer Status Change" },
+	{ sim_utest_lampstate_init, sim_utest_modulestate_step, "Lamp Status Change" },
+	{ sim_utest_gatestate_init, sim_utest_modulestate_step, "Gateway Status Change" },
+	{ sim_utest_mixstate_init, sim_utest_modulestate_step, "Mixed Modules Status Change" },
+	{ sim_utest_gatenoreply_critical_init, sim_utest_gatenoreply_step, "Critical gate no reply" },
+	{ sim_utest_gatenoreply_noncritical_init, sim_utest_gatenoreply_step, "Non Critical gate no reply" },
+	{ sim_utest_lamp_mismatch_init, sim_utest_lamp_mismatch_step, "Lamp state mismatch" }	
 };
 
 int32_t sim_tl_utest_step(thread_t *pThread)
