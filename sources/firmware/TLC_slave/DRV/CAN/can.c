@@ -19,6 +19,7 @@
  **
  * 16.08.2012 taa: creation
  * 20.08.2012 taa: UART_TRACE_CAN moved to system.h
+ * 20.08.2012 taa: ++ TX error recovery
  *
  *//* ************************************************************************ */
 
@@ -36,6 +37,8 @@
 #include "tst.h"        // for trace
 #include "system.h"     // system definition
 #include "os.h"
+#include "dio.h"
+#include "nvram.h"
 
 /*
  * local defines
@@ -150,9 +153,8 @@ void can_init(void)
     // start of the periodic task
     OSSetPeriodicAlarm(cOS_TaskId_CanTask, 2);
 
-#ifdef UART_TRACE_CAN
-    TSTOutStr("\n\rCAN init");
-#endif
+    mDio_SetPin(LedTx,0);
+    mDio_SetPin(LedRx,0);
 }
 
 /** @fn void CAN_IRQHandler(void)
@@ -192,7 +194,9 @@ void can_task(void)
         CANData.TxTimeoutCnt--;
         if (0 == CANData.TxTimeoutCnt)
         { // cancel transmission and go to the next message
-            // TODO: cancell current transmission ?!?
+
+            can_cell_init();
+
             if (CANData.ErrTxTimeoutCnt < cCanMaxErrorCounterValue)
             {
                 CANData.ErrTxTimeoutCnt++;
@@ -238,8 +242,21 @@ void can_tx_task(void)
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 void can_rx_task(void)
 {
+    U8 index;
+
     if ((CANRxQueue.IndexIn != CANRxQueue.IndexOut) || (CANRxQueue.IsFull))
     {
+#ifdef UART_TRACE_CAN
+    TSTOutStr("\r\nRX:");
+    TSTOut16H(CANRxQueue.Message[CANRxQueue.IndexOut].ID);
+
+    for (index=0; index < CANRxQueue.Message[CANRxQueue.IndexOut].Length; index++)
+    {
+        TSTOutStr(":");
+        TSTOut8H(CANRxQueue.Message[CANRxQueue.IndexOut].Data[index]);
+    }
+#endif
+
         if (pCANRxCallback != NULL)
         {
             pCANRxCallback(&CANRxQueue.Message[CANRxQueue.IndexOut]);
@@ -256,6 +273,7 @@ void can_rx_task(void)
     { // more data are available
         OSActivateTask(cOS_TaskId_CanRxTask);
     }
+    mDio_SetPin(LedRx,0);
 }
 
 /**
@@ -337,16 +355,17 @@ static void can_rx_callback(U8 MsgNo)
         }
     }
 
-#ifdef UART_TRACE_CAN
-    TSTOutStr("\r\nRX:");
-    TSTOut16H(msg_obj.mode_id);
-
-    for (index=0; index < msg_obj.dlc; index++)
-    {
-        TSTOutStr(":");
-        TSTOut8H(msg_obj.data[index]);
-    }
-#endif
+//#ifdef UART_TRACE_CAN
+//    TSTOutStr("\r\nRX:");
+//    TSTOut16H(msg_obj.mode_id);
+//
+//    for (index=0; index < msg_obj.dlc; index++)
+//    {
+//        TSTOutStr(":");
+//        TSTOut8H(msg_obj.data[index]);
+//    }
+//#endif
+    mDio_SetPin(LedRx,1);
 }
 
 /**
@@ -364,10 +383,9 @@ static void can_rx_callback(U8 MsgNo)
  *//* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 static void can_tx_callback(U8 MsgNo)
 {
-    if (CANData.TxTimeoutCnt > 0)
-    {
-        OSActivateTask(cOS_TaskId_CanTxTask);
-    }
+    CANData.TxTimeoutCnt = 0;
+    OSActivateTask(cOS_TaskId_CanTxTask);
+    mDio_SetPin(LedTx,0);
 }
 
 /**
@@ -433,6 +451,7 @@ static can_internal_send (tCanMsg * pCanMsg)
     msg_obj.data[6] = pCanMsg->Data[6];
     msg_obj.data[7] = pCanMsg->Data[7];
 
+    mDio_SetPin(LedTx,1)
     C_CAN_PTR->can_transmit(&msg_obj);
 
     // reload timeout
@@ -469,6 +488,9 @@ static void can_cell_init(void)
     U8 index;
     CAN_MSG_OBJ msg_obj;
 
+#ifdef UART_TRACE_CAN
+    TSTOutStr("\n\rCAN:init");
+#endif
     LPC_CAN->CNTL = 0x01;
 
     C_CAN_PTR->init_can(&CanApiClkInitTable[0], TRUE);
@@ -493,6 +515,8 @@ static void can_cell_init(void)
     NVIC_EnableIRQ(CAN_IRQn);
 
     CANData.BusOff = 0;
+    mDio_SetPin(LedTx, 0);
+    mDio_SetPin(LedRx, 0);
 }
 
 /** \}\} */

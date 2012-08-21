@@ -51,7 +51,6 @@
       <includepath path="LPC111x_Lib"/>
       <includepath path="LPC111x_Lib/include"/>
       <includepath path="cmsis_lpc11xx"/>
-      <includepath path="semihosting"/>
       <includepath path="LIB"/>
       <includepath path="OS"/>
       <includepath path="SYS"/>
@@ -60,6 +59,7 @@
       <includepath path="DRV\CAN"/>
       <includepath path="DRV\NVRAM"/>
       <includepath path="APPL"/>
+      <includepath path="DRV\DIO"/>
       
       <!-- arm-none-eabi-gcc compiler arguments -->
       <compilerarg value="-mcpu=cortex-m0"/>

@@ -18,6 +18,7 @@
 /* change log:
  **
  * 16.08.2012 taa: creation
+ * 20.08.2012 taa: TX timeout adjustment
  *
  *//* ************************************************************************ */
 
@@ -39,7 +40,7 @@ extern void appl_can_rx_handler(tCanMsg * pCanMsg);
 #define cCANRxCallback  appl_can_rx_handler
     /**< function to be called upon CAN frame  reception */
 
-#define cCANTxTimeoutInMs    5000
+#define cCANTxTimeoutInMs    20
     /**< TX timeout */
 
 #define cCANTickinMs         10

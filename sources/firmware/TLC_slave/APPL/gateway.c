@@ -25,9 +25,6 @@
  * local defines
  */
 
-#define UART_TRACE_GW
-    /**< uncomment to trace GW */
-
 #define cGWMaxDevices       32
 
 
@@ -424,12 +421,12 @@ void appl_can_rx_handler(tCanMsg * pCanMsg)
  *
  *//* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-void gw_init(void)
+void appl_init(void)
 {
     GWData.DeviceId = nvram_get_u8DeviceId();
     lin_init();
     can_init();
-    OSSetPeriodicAlarm(cOS_TaskId_GWTask, 2);
+    OSSetPeriodicAlarm(cOS_TaskId_ApplTask, 2);
 
     GWData.DeadCount  = 3;
     GWData.WDInterval = 10;
@@ -501,7 +498,7 @@ void gw_lin_reception(tLINMsg * pLINMsg)
  *
  *//* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-void gw_task(void)
+void appl_task(void)
 {
     tCanMsg CanMsg;
     U16 index;

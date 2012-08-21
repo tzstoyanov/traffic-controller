@@ -24,8 +24,6 @@
  * local defines
  */
 
-#define UART_TRACE_LIN
-    /**< uncomment to enable LIN UART trace */
 
 // UART RX states
 #define cLINCmdState_WaitCmdStart   0

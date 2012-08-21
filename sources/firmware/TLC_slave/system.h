@@ -41,11 +41,25 @@
     /**< device type */
 
 
-
-#define UART_TRACE_CAN
+/*
+ * CAN
+ */
+//#define UART_TRACE_CAN
     /**< uncomment to enable CAN trace over UART */
 //#define CAN_TEST
     /**< uncomment to put CAN cell in test mode */
+
+/*
+ * LIN
+ */
+//#define UART_TRACE_LIN
+    /**< uncomment to enable LIN UART trace */
+
+/*
+ * GW
+ */
+//#define UART_TRACE_GW
+    /**< uncomment to trace GW */
 
 #endif
 

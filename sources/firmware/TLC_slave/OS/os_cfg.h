@@ -45,7 +45,7 @@
     #define cOS_TaskId_CanRxTask    ((tOSTaskID)(1<<2))
     #define cOS_TaskId_LinTask      ((tOSTaskID)(1<<3))
     #define cOS_TaskId_LinRxTask    ((tOSTaskID)(1<<4))
-    #define cOS_TaskId_GWTask       ((tOSTaskID)(1<<5))
+    #define cOS_TaskId_ApplTask     ((tOSTaskID)(1<<5))
     #define cOS_TaskId_TimerTask    ((tOSTaskID)(1<<6))
 
 /*
@@ -58,16 +58,8 @@
     extern void can_rx_task(void);
     extern void lin_task(void);
     extern void lin_rx_task(void);
-
     extern void OSTimerTask(void);
-
-#if   DEVICE_TYPE == DEVICE_TYPE_GATEWAY
-    extern void gw_task(void);
-    #define APPL_TASK   gw_task
-#elif DEVICE_TYPE == DEVICE_TYPE_LAMP
-    #define APPL_TASK   NULL
-#endif
-
+    extern void appl_task(void);
 /*
  * Task list
  * The initializer of OS task list, smaller index are with greater priority, except index 0 which is IDLE task
@@ -79,7 +71,7 @@
       can_rx_task,                          \
       lin_task,                             \
       lin_rx_task,                          \
-      APPL_TASK,                            \
+      appl_task,                            \
       OSTimerTask,                          \
       NULL,                                 \
       NULL,                                 \

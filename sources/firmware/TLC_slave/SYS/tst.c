@@ -1,6 +1,6 @@
 #include "types.h"
 
-#include "semihosting.h"
+//#include "semihosting.h"
 #include "lpc11xx_uart.h"
 
 // open the output stream
