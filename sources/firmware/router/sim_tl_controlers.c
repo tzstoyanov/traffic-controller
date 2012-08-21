@@ -108,7 +108,7 @@ int tl_controler_config(tl_controler_t *pControler, t_can_packet_t *pPacket)
 		{
 			if(NULL == pControler)
 			{
-				for(i=1;j<TL_MAX_CONTROLERS; j++)
+				for(j=1;j<TL_MAX_CONTROLERS; j++)
 				{
 					if(NULL == pDbGlobal->arrDevices[j])
 						break;
@@ -129,8 +129,31 @@ int sim_set_timer_state(tl_controler_timer_t *pTimer, t_can_packet_t *pPacket)
 	uint8_t iDataLen;
 	uint8_t iColor = (pPacket->arrData[0] & 0x18) >> 3;
 	uint8_t iAction = (pPacket->arrData[0] & 0x07);
+	uint8_t iPktType = (pPacket->arrData[0] & 0xE0) >> 5;
+	uint8_t iNewState = pPacket->arrData[0] & 0x0F;
+	uint8_t *pData = pPacket->arrData;
+	uint8_t arrFailData[]={0,0};
 	tl_sim_controler_t *pSim = (tl_sim_controler_t *)pTimer->stHead.pData;
 	struct timeval stNow={0,0};
+
+	if(TL_MODULE_ALL == iPktType && TL_ALL_STATE_FAILSAFE == iNewState)
+	{
+		pSim->iFailSafeState++;
+		iAction = TL_TIMER_ACT_STATIC;
+		iColor = TL_TIMER_COLOR_RED;
+		pData = arrFailData;
+		iDataLen = sizeof(arrFailData);
+		pTimer->stHead.iStatus = TL_MODULE_STATE_FAILSAFE;
+//		tl_log_info("%s is in FailSafe", pTimer->stHead.szName );
+	}
+	else
+	{
+		pSim->iFailSafeState = 0;
+//		if(TL_MODULE_STATE_FAILSAFE == pTimer->stHead.iStatus)
+//					tl_log_info("%s is in OK", pTimer->stHead.szName );
+		
+		pTimer->stHead.iStatus = TL_MODULE_STATE_OK;
+	}
 	
 	switch(iAction)
 	{
@@ -152,7 +175,7 @@ int sim_set_timer_state(tl_controler_timer_t *pTimer, t_can_packet_t *pPacket)
 	pTimer->stCurrentState.iStateLen = iDataLen;
 	while(iDataLen > 0)
 	{
-		pTimer->stCurrentState.arrState[iDataLen-1] = pPacket->arrData[iDataLen];
+		pTimer->stCurrentState.arrState[iDataLen-1] = pData[iDataLen];
 		iDataLen--;
 	}	
 
@@ -168,11 +191,27 @@ int sim_set_timer_state(tl_controler_timer_t *pTimer, t_can_packet_t *pPacket)
 
 int sim_set_lamp_state(tl_controler_lamp_t *pLamp, t_can_packet_t *pPacket)
 {
+	uint8_t iPktType = (pPacket->arrData[0] & 0xE0) >> 5;
 	struct timeval stNow={0,0};
 	tl_sim_controler_t *pSim = (tl_sim_controler_t *)pLamp->stHead.pData;	
+	uint8_t iNewState = pPacket->arrData[0] & 0x0F;
 	
-	pLamp->stCurrentState.iState = pPacket->arrData[0] & 0x0F;
-
+	if(TL_MODULE_LAMP == iPktType)
+	{
+		pLamp->stCurrentState.iState = iNewState;
+		pSim->iFailSafeState = 0;
+//		if(TL_MODULE_STATE_FAILSAFE == pLamp->stHead.iStatus)
+//					tl_log_info("%s is in OK", pLamp->stHead.szName );
+		pLamp->stHead.iStatus = TL_MODULE_STATE_OK;
+		
+	}else if(TL_MODULE_ALL == iPktType && TL_ALL_STATE_FAILSAFE == iNewState)
+	{
+		pLamp->stCurrentState.iState = 0;
+		pSim->iFailSafeState++;
+		pLamp->stHead.iStatus = TL_MODULE_STATE_FAILSAFE;
+//		tl_log_info("%s is in FailSafe", pLamp->stHead.szName );
+	}
+	
 	get_time_rel(&(pSim->stLastStateTime), &stNow);
 	if(TL_IS_DEBUG(LAMP))	
 		tl_log_info("%s state changed to [%s] in %d.%03d",
@@ -185,22 +224,49 @@ int sim_set_lamp_state(tl_controler_lamp_t *pLamp, t_can_packet_t *pPacket)
 
 int sim_tl_controler_state(tl_controler_t *pControler, t_can_packet_t *pPacket)
 {
-	uint8_t iPktType;
-	if(NULL == pControler || pPacket->iLen < 1)
-		return ERROR;
-	iPktType = (pPacket->arrData[0] & 0xE0) >> 5;	
-	if(iPktType != pControler->iType)
-		return ERROR;
+	uint8_t iPktType, j;
+	tl_global_config_t *pDbGlobal = tl_get_global_dbase();
 
-	switch(pControler->iType)
+	if(pPacket->iLen < 1)
+		return ERROR;
+		
+	iPktType = (pPacket->arrData[0] & 0xE0) >> 5;	
+	if(NULL == pControler)
 	{
-		case TL_MODULE_LAMP: 
-			return sim_set_lamp_state((tl_controler_lamp_t*)pControler, pPacket);
-		case TL_MODULE_TIMER:
-			return sim_set_timer_state((tl_controler_timer_t*)pControler, pPacket);
-		default:
-			break;		
-	}	
+		if(iPktType != TL_MODULE_ALL)
+			return ERROR;
+		for(j=1;j<TL_MAX_CONTROLERS; j++)
+		{
+			pControler = pDbGlobal->arrDevices[j];
+			if(NULL == pControler)
+				break;
+			switch(pControler->iType)
+			{
+				case TL_MODULE_LAMP: 
+					sim_set_lamp_state((tl_controler_lamp_t*)pControler, pPacket);
+					break;
+				case TL_MODULE_TIMER:
+					sim_set_timer_state((tl_controler_timer_t*)pControler, pPacket);
+					break;
+				default:
+					break;		
+			}				
+		}		
+	}
+	else
+	{
+		if(iPktType != pControler->iType)
+			return ERROR;
+		switch(pControler->iType)
+		{
+			case TL_MODULE_LAMP: 
+				return sim_set_lamp_state((tl_controler_lamp_t*)pControler, pPacket);
+			case TL_MODULE_TIMER:
+				return sim_set_timer_state((tl_controler_timer_t*)pControler, pPacket);
+			default:
+				break;		
+		}
+	}		
 	
 	return ERROR;
 }

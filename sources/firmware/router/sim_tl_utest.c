@@ -58,7 +58,7 @@ int sim_utest_normal_init(tl_sim_global_t *pSim)
 int sim_utest_normal_step(tl_sim_global_t *pSim)
 {	
 	int iRet;
-	if(3 <=  pSim->iTestStepCount)
+	if(4 <=  pSim->iTestStepCount)
 	{
 		iRet = sim_tl_check_status(0, 0, 0, TL_PROGRAM_RUNNING);
 		tl_log_info(" ... %s", OK==iRet?"PASSED":"FAILED");
@@ -104,15 +104,33 @@ int sim_utest_modulestate_init(tl_sim_global_t *pSim, uint8_t iType, uint8_t iDu
 	return OK;
 }
 
+void tl_sim_calc_dut_status(uint8_t iDut, uint8_t *pCrit, uint8_t *pWar)
+{
+	tl_sim_controler_t *pSimControler;
+	tl_global_config_t *pDbGlobal = tl_get_global_dbase();
+
+	pSimControler = (tl_sim_controler_t *)pDbGlobal->arrDevices[iDut]->pData;
+	if(	TL_MODULE_STATE_OK == pSimControler->iSimStatus || 
+		TL_MODULE_STATE_INIT == pSimControler->iSimStatus)
+		return;
+	if(!pDbGlobal->arrDevices[iDut]->iCritical || 
+		TL_MODULE_STATE_HW_WARN == pSimControler->iSimStatus ||
+		TL_MODULE_STATE_FAILSAFE == pSimControler->iSimStatus)	
+		(*pWar)++;
+	else
+		(*pCrit)++;	
+			
+}
+
 int sim_utest_modulestate_step(tl_sim_global_t *pSim)
 {
 	int iRet, iDut;
-	uint8_t iDevError, iCritical, iWarning; 
+	uint8_t iDevError, iCritical, iWarning, iCrit, iWarn, iGateErr, iModOk; 
 	tl_program_state_t iProgState;
 	tl_sim_controler_t *pSimControler;
 	tl_global_config_t *pDbGlobal = tl_get_global_dbase();
 	
-	if(0 == (1+pSim->iTestStepCount)%3)
+	if(0 == (1+pSim->iTestStepCount)%4)
 	{		
 		pSimControler = (tl_sim_controler_t *)pDbGlobal->arrDevices[pSim->arrDut[0]]->pData;
 		tl_log_info_nonr("\t Status %s ... ",  tl_status2string(pSimControler->iSimStatus));
@@ -120,7 +138,34 @@ int sim_utest_modulestate_step(tl_sim_global_t *pSim)
 		iDevError = 0;
 		iCritical = 0;
 		iWarning = 0;
+		iGateErr = 0;
+		iModOk = 0;		
 		iProgState = TL_PROGRAM_RUNNING;
+		for(iDut = 0; iDut <TL_SIM_MAX_DUT; iDut++)
+		{
+			if(! pSim->arrDut[iDut] )
+				break;
+			iCrit = 0;
+			iWarn = 0;	
+			pSimControler = (tl_sim_controler_t *)pDbGlobal->arrDevices[pSim->arrDut[iDut]]->pData;
+			tl_sim_calc_dut_status(pSim->arrDut[iDut], &iCrit, &iWarn);
+			iCritical += iCrit;
+			iWarning += iWarn;
+			if(TL_MODULE_GATE == pDbGlobal->arrDevices[pSim->arrDut[iDut]]->iType && 
+				(iCrit || iWarn))
+				iGateErr++;
+			if(TL_MODULE_GATE != pDbGlobal->arrDevices[pSim->arrDut[iDut]]->iType && 
+				!iCrit && !iWarn)
+				iModOk++;	
+		}
+		if(iCritical)
+		{
+			iDevError = pSim->iLampCount + pSim->iTimerCount + iGateErr - iModOk;
+			iWarning = iDevError - iCritical;
+			iProgState = TL_PROGRAM_PAUSE;
+		}else
+			iDevError = iWarning;
+
 		for(iDut = 0; iDut <TL_SIM_MAX_DUT; iDut++)
 		{
 			if(! pSim->arrDut[iDut] )
@@ -162,22 +207,6 @@ int sim_utest_modulestate_step(tl_sim_global_t *pSim)
 				}				
 			}
 			
-			if(	TL_MODULE_STATE_OK == pSimControler->iSimStatus || 
-				TL_MODULE_STATE_INIT == pSimControler->iSimStatus)
-			{
-				/* default values */				
-			}else if(!pDbGlobal->arrDevices[pSim->arrDut[iDut]]->iCritical || 
-					TL_MODULE_STATE_HW_WARN == pSimControler->iSimStatus)
-			{
-				iDevError++;
-				iWarning++;			
-			}
-			else
-			{
-				iDevError++;
-				iCritical++;
-				iProgState = TL_PROGRAM_PAUSE;				
-			}
 			pSimControler->iSimStatus++;
 			if(TL_MODULE_STATE_MISMATCH == pSimControler->iSimStatus)
 				pSimControler->iSimStatus = TL_MODULE_STATE_OK;	
@@ -187,7 +216,6 @@ int sim_utest_modulestate_step(tl_sim_global_t *pSim)
 		iRet = sim_tl_check_status(iDevError, iCritical, iWarning, iProgState);			
 		if(OK != iRet)
 			tl_log_info("FAILED, unexpected system state");
-
 
 		if(OK == iRet)
 			tl_log_info("PASSED");
@@ -239,7 +267,6 @@ int sim_utest_gatenoreply_init(tl_sim_global_t *pSim, uint8_t iCritical)
 	tl_global_config_t *pDbGlobal = tl_get_global_dbase();
 	tl_sim_controler_t *pSimControler = NULL;
 
-	tl_log_info("");
 	pSim->arrDut[0] = 0;
 	for(i=1; i<TL_MAX_CONTROLERS; i++)
 	{
@@ -254,7 +281,7 @@ int sim_utest_gatenoreply_init(tl_sim_global_t *pSim, uint8_t iCritical)
 		pSim->arrDut[0] = i;
 		pSimControler = (tl_sim_controler_t *)pDbGlobal->arrDevices[i]->pData;
 		pSimControler->iSimStatusBlock = 0;
-		pSimControler->iSimStatus = TL_MODULE_STATE_OK;
+		sim_utest_set_init_state(pSimControler);
 	}
 	return OK;
 }
@@ -278,41 +305,45 @@ int sim_utest_gatenoreply_step(tl_sim_global_t *pSim)
 	
 	if(0 == pSim->arrDut[0])
 	{
-		tl_log_info("FAILED, No suitable configuration in system config file");
+		tl_log_info(" ... FAILED, No suitable configuration in system config file");
 		return OK;
 	}
 	
-	if(3 == pSim->iTestStepCount)
+	if(4 == pSim->iTestStepCount)
 	{
 		if(OK != sim_tl_check_status(0, 0, 0, TL_PROGRAM_RUNNING))
 		{
-			tl_log_info("FAILED, unexpected system state");
+			tl_log_info(" ... FAILED, unexpected system state");
 			return OK;
 		}
 		pSimControler = (tl_sim_controler_t *)pDbGlobal->arrDevices[pSim->arrDut[0]]->pData;
 		pSimControler->iSimStatusBlock = 1;
 	}
-	else if(6 == pSim->iTestStepCount)
+	else if(8 == pSim->iTestStepCount)
 	{
 		pSimControler = (tl_sim_controler_t *)pDbGlobal->arrDevices[pSim->arrDut[0]]->pData;
-		iDevError = pSimControler->iSlavesAttached + 1;
 		iCritical = 0;
 		iWarning = 0;
 		iProgState = TL_PROGRAM_RUNNING;
 		if(pDbGlobal->arrDevices[pSim->arrDut[0]]->iCritical)
 		{
-			iCritical = iDevError;
+			iDevError = pSim->iLampCount + pSim->iTimerCount + 1;
+			iCritical = pSim->iLampCount + 1;
+			iWarning = iDevError - iCritical;
 			iProgState = TL_PROGRAM_PAUSE;
-		}else
+		}
+		else
+		{
+			iDevError = pSimControler->iSlavesAttached + 1;
 			iWarning = iDevError;
-
+		}
 		if(OK != sim_tl_check_status(iDevError, iCritical, iWarning, iProgState))
-			tl_log_info("FAILED, unexpected system state");
+			tl_log_info(" ... FAILED, unexpected system state");
 		else	
-			tl_log_info("PASSED");
+			tl_log_info(" ... PASSED");
 			
 		return OK;	
-	}else if( 6 < pSim->iTestStepCount)
+	}else if( 8 < pSim->iTestStepCount)
 	{
 		return OK;
 	}
@@ -331,8 +362,8 @@ struct
 	{sim_utest_lampstate_init, sim_utest_modulestate_step, "Lamp Status Change"},
 	{sim_utest_gatestate_init, sim_utest_modulestate_step, "Gateway Status Change"},
 	{sim_utest_mixstate_init, sim_utest_modulestate_step, "Mixed Modules Status Change"},
-	{sim_utest_gatenoreply_critical_init, sim_utest_gatenoreply_step, "Critical gate no reply"},	
-	{sim_utest_gatenoreply_noncritical_init, sim_utest_gatenoreply_step, "Non Critical gate no reply"}	
+	{sim_utest_gatenoreply_critical_init, sim_utest_gatenoreply_step, "Critical gate no reply"},
+	{sim_utest_gatenoreply_noncritical_init, sim_utest_gatenoreply_step, "Non Critical gate no reply"}
 };
 
 int32_t sim_tl_utest_step(thread_t *pThread)
