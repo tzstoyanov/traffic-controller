@@ -1,6 +1,6 @@
 #!/bin/sh
 
-TL_DIR=/jffs/tl
+TL_DIR=/mmc/tl
 TL_APP=tlight
 TL_CFG=Cross1.cfg
 TL_PROG=Program1Cross1.cfg
