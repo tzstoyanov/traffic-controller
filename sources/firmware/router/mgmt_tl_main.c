@@ -11,6 +11,7 @@ int iClientFd=-1;
 
 void print_help(char *pPname)
 {
+	tl_log_info("%s %s; %s %s", pPname, MODULE_VERSION, __DATE__, __TIME__);
 	tl_log_info("Usage: %s [OPIONS]", pPname);
 	tl_log_info("\t-h, --help\tHelp");
 	tl_log_info("\t-v, --version\tVersion information");

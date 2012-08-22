@@ -47,8 +47,7 @@ int tl_controler_check_common(uint8_t *arrStatus)
 						((tl_controler_lamp_t*)(pGlobal->arrDevices[iAddress]))->stCurrentState.iState,
 						iStatus );
 				pGlobal->arrDevices[iAddress]->iErrorCount++;		
-				if(	pGlobal->arrDevices[iAddress]->iErrorCount < pGlobal->iDeadCount && 
-					pGlobal->arrDevices[iAddress]->bLastCommandValid)
+				if(	pGlobal->arrDevices[iAddress]->bLastCommandValid)
 					tl_program_send_cmd(&(pGlobal->stPort), pGlobal->arrDevices[iAddress]->arrLastCommand, iAddress);
 			}else
 				pGlobal->arrDevices[iAddress]->iErrorCount = 0;
@@ -90,6 +89,8 @@ int tl_controler_check_common(uint8_t *arrStatus)
 		case TL_MODULE_STATE_TIMEOUT:
 			break;
 		case TL_MODULE_STATE_MISMATCH:
+			break;	
+		case TL_MODULE_STATE_FAILSAFE:
 			break;	
 		default:
 			break;
@@ -435,7 +436,8 @@ int tl_controlers_get_state(uint8_t *pAll, uint8_t *pOk, uint8_t *pFail)
 		if(NULL == pGlobal->arrDevices[i])
 			break;
 
-		if(TL_MODULE_STATE_OK == pGlobal->arrDevices[i]->iStatus)
+		if(	TL_MODULE_STATE_OK == pGlobal->arrDevices[i]->iStatus && 
+			pGlobal->arrDevices[i]->iWdMiss < pGlobal->iDeadCount)
 			iOk++;
 		else
 			iFail++;

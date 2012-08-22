@@ -96,6 +96,7 @@ char *tl_status2string(uint8_t iStatus)
 		case TL_MODULE_STATE_COMM_ERR:	return "Communication error";
 		case TL_MODULE_STATE_TIMEOUT:	return "Communication timeout";
 		case TL_MODULE_STATE_MISMATCH:	return "Mismatch";
+		case TL_MODULE_STATE_FAILSAFE:	return "FailSafe";
 		default: break;
 	}
 	return "Uknown";

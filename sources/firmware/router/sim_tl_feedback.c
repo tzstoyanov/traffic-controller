@@ -35,6 +35,24 @@ int sim_tl_get_mod(char *szName, tl_api_status_mod_t *pModStatus)
 	return ERROR;	
 }
 
+void sim_tl_mod_state_dump()
+{
+	uint8_t iModNum, i;
+	tl_api_status_mod_t stModStatus;
+	int iFd = sim_get_client_fd();	
+	
+	tl_mgmt_send(sim_get_client_fd(), TL_API_GET_STATUS_MOD, NULL, 0);
+	if(sizeof(iModNum) == tl_mgmt_get(iFd, (uint8_t*)(&iModNum), sizeof(iModNum) ))
+	{
+		for(i=0; i<iModNum; i++)
+			if(sizeof(stModStatus) == 
+					tl_mgmt_get(iFd, (uint8_t*)(&stModStatus), sizeof(stModStatus) ))
+				{	
+					tl_log_info(" %s %s", stModStatus.szName, tl_status2string(stModStatus.iStatus));
+				}
+	}
+}
+
 int sim_tl_check_status(uint8_t iDevError, uint8_t iCritical, 
 						uint8_t iWarning, tl_program_state_t iProgState)
 {
@@ -44,17 +62,23 @@ int sim_tl_check_status(uint8_t iDevError, uint8_t iCritical,
 	{
 			if(iDevError != stStatus.iDeviceError)
 			{
-				tl_log_info("Dev error %d != %d", iDevError, stStatus.iDeviceError);
+				tl_log_info("Dev error %d: %d %d %d", iDevError, 
+						stStatus.iDeviceError, stStatus.iCritError, stStatus.iWarning);
+				sim_tl_mod_state_dump();
 				return ERROR;
 			}
 			if(iCritical != stStatus.iCritError)
 			{
-				tl_log_info("Crit error %d != %d", iCritical, stStatus.iCritError);			
+				tl_log_info("Crit error %d: %d %d %d", iCritical, 
+						stStatus.iDeviceError, stStatus.iCritError, stStatus.iWarning);
+				sim_tl_mod_state_dump();		
 				return ERROR;
 			}
 			if(iWarning != stStatus.iWarning)
 			{
-				tl_log_info("Warning %d != %d", iWarning, stStatus.iWarning);					
+				tl_log_info("Warning %d: %d %d %d", iWarning, 
+							stStatus.iDeviceError, stStatus.iCritError, stStatus.iWarning);
+				sim_tl_mod_state_dump();			
 				return ERROR;
 			}
 			if(iProgState != stStatus.iProgState) 

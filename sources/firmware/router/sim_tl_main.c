@@ -18,6 +18,7 @@ tl_sim_global_t stSimGlobal;
 
 void print_help(char *pPname)
 {
+	tl_log_info("%s %s; %s %s", pPname, MODULE_VERSION, __DATE__, __TIME__);
 	tl_log_info("Usage: %s [OPIONS]", pPname);
 	tl_log_info("\t-h, --help\t\tHelp");
 	tl_log_info("\t-v, --version\t\tVersion information");
@@ -67,6 +68,33 @@ int sim_get_client_fd()
 		return pGlobal->iApiFd;
 	pGlobal->iApiFd = tl_mgmt_connect();	 
 	return pGlobal->iApiFd;
+}
+
+void tl_sim_calcdev_count(tl_sim_global_t *pSim)
+{
+	int i;
+	tl_global_config_t *pDbGlobal = tl_get_global_dbase();
+	
+	for(i=1; i<TL_MAX_CONTROLERS; i++)
+	{
+		if(NULL == pDbGlobal->arrDevices[i])
+			break;		
+		switch(pDbGlobal->arrDevices[i]->iType)
+		{
+			case TL_MODULE_LAMP:
+				pSim->iLampCount++;
+				break;
+			case TL_MODULE_TIMER:
+				pSim->iTimerCount++;
+				break;
+			case TL_MODULE_GATE:
+				pSim->iGateCount++;
+				break;
+			default:
+				break;	
+		}
+	}	
+		
 }
 
 int main(int argc, char **argv)
@@ -172,7 +200,7 @@ int main(int argc, char **argv)
 
 	stSimGlobal.iApiFd = tl_mgmt_connect();
 	sim_tl_utest_init();
-	
+	tl_sim_calcdev_count(&stSimGlobal);
 	tl_clock_gettime(&(pDbGlobal->stStartTime));
 
 	if(iSem != -1)

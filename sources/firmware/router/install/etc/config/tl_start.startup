@@ -1,6 +1,6 @@
 #!/bin/sh
 
-TL_DIR=/jffs/tl
+TL_DIR=/mmc/tl
 TL_APP=tlight
 TL_CFG=Cross1.cfg
 TL_PROG=Program1Cross1.cfg
@@ -11,7 +11,7 @@ killall $TL_APP
 killall $TL_SIM
 killall $TL_MGMT
 $TL_DIR/$TL_APP -d -c $TL_DIR/$TL_CFG
-$TL_DIR/$TL_SIM -d -c $TL_DIR/$TL_CFG
+# $TL_DIR/$TL_SIM -d -c $TL_DIR/$TL_CFG
 $TL_DIR/$TL_MGMT --program replace=$TL_DIR/$TL_PROG
 
 

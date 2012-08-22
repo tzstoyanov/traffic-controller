@@ -16,7 +16,7 @@ static tl_global_t stGlobal;
 
 void print_help(char *pPname)
 {
-	tl_log_info("[%s]; %s %s", MODULE_VERSION, __DATE__, __TIME__);
+	tl_log_info("%s %s; %s %s", pPname, MODULE_VERSION, __DATE__, __TIME__);
 	tl_log_info("Usage: %s [OPIONS]", pPname);
 	tl_log_info("\t-h, --help\t\tHelp");
 	tl_log_info("\t-v, --version\t\tVersion information");
@@ -55,6 +55,7 @@ void tl_check_system_status()
 		{
 			if(	pDbGlobal->arrDevices[i]->iCritical && 
 				TL_MODULE_STATE_HW_WARN != pDbGlobal->arrDevices[i]->iStatus &&
+				TL_MODULE_STATE_FAILSAFE != pDbGlobal->arrDevices[i]->iStatus &&
 				pDbGlobal->arrDevices[i]->iErrorCount >= pDbGlobal->iDeadCount)
 				iCritical++;
 			else

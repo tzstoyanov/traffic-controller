@@ -10,6 +10,9 @@ typedef struct
 	thread_t	*pWDThread;	
 	main_thread_t stMaintThread;
 	int iApiFd;
+	int iLampCount;
+	int iTimerCount;
+	int iGateCount;
 	uint8_t iUtest;
 	uint32_t iTestStepDelay;
 	uint32_t iTestStepCount;
@@ -27,6 +30,7 @@ typedef struct
 	uint8_t iSlavesAttached;
 	struct timeval stLastStateTime;	
 	uint32_t arrCfgReceived[TL_CFGID_SLAVES];
+	uint8_t iFailSafeState;
 	int iSimStatus;
 	uint8_t iAdaptiveStateInit;
 	int iSimSegments;

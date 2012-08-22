@@ -1,7 +1,7 @@
 #ifndef __TLIGHT_PACKETS_API_H__
 #define __TLIGHT_PACKETS_API_H__
 
-#include "tl_common.h"
+#include "../common/tl_common.h"
 
 typedef struct
 {
