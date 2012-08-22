@@ -17,6 +17,7 @@
 #include "assert.h"
 #include "lpc11xx_gpio.h"
 #include "nvram.h"
+#include "dio.h"
 
 /*
  * local types
@@ -89,6 +90,7 @@ void appl_init(void)
 void appl_can_rx_handler(tCanMsg * pCanMsg)
 {
     tCanMsg CanMsg;
+    U8 Temp;
 
     if (   ((pCanMsg->ID & 0x0FF)== LampData.DeviceId)
         || ((pCanMsg->ID & 0x0FF)== TLC_ADDR_ALL)
@@ -102,14 +104,22 @@ void appl_can_rx_handler(tCanMsg * pCanMsg)
             {
                 if ((pCanMsg->Data[0] & 0x01) == 0)
                 {
-                    GPIO_SetBits(PORT1, GPIO_Pin_9);
+                    mDio_SetPin(GREEN, 0);
                     LampData.Status = 0;
                 }
                 else
                 {
-                    GPIO_ResetBits(PORT1, GPIO_Pin_9);
+                    mDio_SetPin(GREEN, 1);
                     LampData.Status = 1;
                 }
+
+                Temp = (pCanMsg->Data[0] & 0x02);
+                mDio_SetPin(RED   ,Temp != 0);
+                LampData.Status += Temp;
+
+                Temp = (pCanMsg->Data[0] & 0x04);
+                mDio_SetPin(YELLOW,Temp != 0);
+                LampData.Status += Temp;
 
                 if (TLC_ERROR_INIT == LampData.ErrByte.Error)
                 {

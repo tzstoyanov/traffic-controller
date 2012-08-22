@@ -48,6 +48,8 @@
     /**< uncomment to enable CAN trace over UART */
 //#define CAN_TEST
     /**< uncomment to put CAN cell in test mode */
+#define CAN_LED_ENABLE
+    /**< uncomment to use LedTx/LedRx */
 
 /*
  * LIN

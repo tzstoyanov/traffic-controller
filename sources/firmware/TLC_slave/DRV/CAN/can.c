@@ -47,6 +47,13 @@
 
 #define cCanMaxErrorCounterValue    0xFFFF
 
+#ifdef CAN_LED_ENABLE
+    #define CAN_LED_TX(STATE)   mDio_SetPin(LedTx,STATE)
+    #define CAN_LED_RX(STATE)   mDio_SetPin(LedRx,STATE)
+#else
+    #define CAN_LED_TX(STATE)
+    #define CAN_LED_RX(STATE)
+#endif
 
 /*
  * local types
@@ -153,8 +160,9 @@ void can_init(void)
     // start of the periodic task
     OSSetPeriodicAlarm(cOS_TaskId_CanTask, 2);
 
-    mDio_SetPin(LedTx,0);
-    mDio_SetPin(LedRx,0);
+    CAN_LED_TX(0);
+    CAN_LED_RX(0);
+
 }
 
 /** @fn void CAN_IRQHandler(void)
@@ -273,7 +281,8 @@ void can_rx_task(void)
     { // more data are available
         OSActivateTask(cOS_TaskId_CanRxTask);
     }
-    mDio_SetPin(LedRx,0);
+
+    CAN_LED_RX(0);
 }
 
 /**
@@ -365,7 +374,7 @@ static void can_rx_callback(U8 MsgNo)
 //        TSTOut8H(msg_obj.data[index]);
 //    }
 //#endif
-    mDio_SetPin(LedRx,1);
+    CAN_LED_RX(1);
 }
 
 /**
@@ -385,7 +394,8 @@ static void can_tx_callback(U8 MsgNo)
 {
     CANData.TxTimeoutCnt = 0;
     OSActivateTask(cOS_TaskId_CanTxTask);
-    mDio_SetPin(LedTx,0);
+
+    CAN_LED_TX(0);
 }
 
 /**
@@ -451,7 +461,8 @@ static can_internal_send (tCanMsg * pCanMsg)
     msg_obj.data[6] = pCanMsg->Data[6];
     msg_obj.data[7] = pCanMsg->Data[7];
 
-    mDio_SetPin(LedTx,1)
+    CAN_LED_TX(1);
+
     C_CAN_PTR->can_transmit(&msg_obj);
 
     // reload timeout
@@ -515,8 +526,8 @@ static void can_cell_init(void)
     NVIC_EnableIRQ(CAN_IRQn);
 
     CANData.BusOff = 0;
-    mDio_SetPin(LedTx, 0);
-    mDio_SetPin(LedRx, 0);
+    CAN_LED_TX(0);
+    CAN_LED_RX(0);
 }
 
 /** \}\} */
