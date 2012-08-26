@@ -3,6 +3,18 @@
 
 #include "..\..\common\tl_common.h"
 
+
+typedef union
+{
+    struct
+    {
+        U8 Error:4;
+        U8 ErrFlag:1;
+        U8 Type:3;
+    };
+    U8 Data;
+} tErrByte;
+
 /*
  * FRAME :<id:11> <len:4> <data:0-64>
  * <id>  :<cmd:3><address:8>

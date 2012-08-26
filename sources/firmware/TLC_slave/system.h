@@ -40,7 +40,7 @@
 #define DEVICE_TYPE     DEVICE_TYPE_GATEWAY
     /**< device type */
 
-
+#if DEVICE_TYPE == DEVICE_TYPE_GATEWAY
 /*
  * CAN
  */
@@ -62,6 +62,7 @@
  */
 //#define UART_TRACE_GW
     /**< uncomment to trace GW */
+#endif
 
 #endif
 

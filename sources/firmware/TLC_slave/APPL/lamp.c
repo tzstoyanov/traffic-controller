@@ -22,16 +22,6 @@
 /*
  * local types
  */
-typedef union
-{
-    struct
-    {
-        U8 Error:4;
-        U8 ErrFlag:1;
-        U8 Type:3;
-    };
-    U8 Data;
-} tErrByte;
 
 typedef struct
 {
@@ -66,7 +56,7 @@ void appl_init(void)
 {
     LampData.DeviceId = nvram_get_u8DeviceId();
     LampData.ErrByte.Error = TLC_ERROR_INIT;
-    LampData.ErrByte.ErrFlag = FALSE;
+    LampData.ErrByte.ErrFlag = TRUE;
     LampData.ErrByte.Type  = TLC_TYPE_LAMP;
     can_init();
 }
@@ -102,28 +92,16 @@ void appl_can_rx_handler(tCanMsg * pCanMsg)
         {
             if (((pCanMsg->Data[0] & 0xE0)>>5) == TLC_TYPE_LAMP)
             {
-                if ((pCanMsg->Data[0] & 0x01) == 0)
-                {
-                    mDio_SetPin(GREEN, 0);
-                    LampData.Status = 0;
-                }
-                else
-                {
-                    mDio_SetPin(GREEN, 1);
-                    LampData.Status = 1;
-                }
+                mDio_SetPin(GREEN , (0 != (pCanMsg->Data[0] & 0x01)));
+                mDio_SetPin(RED   , (0 != (pCanMsg->Data[0] & 0x02)));
+                mDio_SetPin(YELLOW, (0 != (pCanMsg->Data[0] & 0x04)));
 
-                Temp = (pCanMsg->Data[0] & 0x02);
-                mDio_SetPin(RED   ,Temp != 0);
-                LampData.Status += Temp;
-
-                Temp = (pCanMsg->Data[0] & 0x04);
-                mDio_SetPin(YELLOW,Temp != 0);
-                LampData.Status += Temp;
+                LampData.Status = pCanMsg->Data[0] & 0x07;
 
                 if (TLC_ERROR_INIT == LampData.ErrByte.Error)
                 {
                     LampData.ErrByte.Error = TLC_ERROR_OK;
+                    LampData.ErrByte.ErrFlag = FALSE;
                 }
             }
         }

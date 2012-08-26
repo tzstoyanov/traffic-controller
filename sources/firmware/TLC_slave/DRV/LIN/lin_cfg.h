@@ -20,7 +20,7 @@
 extern void gw_lin_reception(tLINMsg * LINMsg);
 #define LIN_RX_CALLBACK_PTR    gw_lin_reception
 
-#define NO_TX_REPLY
+//#define NO_TX_REPLY
 
 #endif
 /**    @}

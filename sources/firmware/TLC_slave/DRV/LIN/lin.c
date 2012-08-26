@@ -264,7 +264,6 @@ void lin_task(void)
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 void lin_rx_task(void)
 {
-    //UART_Send(LPC_UART, LINRxMsg.Data, LINRxMsg.Len, BLOCKING);
     if (NULL != LINData.pRxCallback)
     {
         LINData.pRxCallback(&LINRxMsg);

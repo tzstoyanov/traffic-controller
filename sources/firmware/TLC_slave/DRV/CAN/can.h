@@ -35,6 +35,7 @@ typedef void (*tpCANRxCallback) (tCanMsg * pCanMsg);
 
 extern void can_init   (void);
 extern void can_deinit (void);
+extern void can_task   (void);
 extern void can_tx_task(void);
 extern void can_rx_task(void);
 

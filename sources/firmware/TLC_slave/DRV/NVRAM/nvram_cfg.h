@@ -4,11 +4,11 @@
 #include "system.h"
 
 #if DEVICE_TYPE == DEVICE_TYPE_LAMP
-    #define nvram_get_u8DeviceId()       0x01
+    #define nvram_get_u8DeviceId()       0x03
 #elif DEVICE_TYPE == DEVICE_TYPE_TIMER
-    #define nvram_get_u8DeviceId()       0x02
+    #define nvram_get_u8DeviceId()       0x07
 #else
-    #define nvram_get_u8DeviceId()       0x42
+    #define nvram_get_u8DeviceId()       0x2
 #endif
 
 
