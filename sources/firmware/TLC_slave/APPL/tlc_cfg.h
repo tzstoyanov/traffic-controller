@@ -8,12 +8,13 @@ typedef union
 {
     struct
     {
-        U8 Error:4;
+        U8 Error  :4;
         U8 ErrFlag:1;
-        U8 Type:3;
+        U8 Type   :3;
     };
     U8 Data;
-} tErrByte;
+} tTLCErrByte;
+
 
 /*
  * FRAME :<id:11> <len:4> <data:0-64>

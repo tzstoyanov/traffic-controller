@@ -67,6 +67,9 @@
       <compilerarg value="-Wall"/>      
       <compilerarg value="-ffunction-sections"/>
       <compilerarg value="-O0"/>
+      
+      <compilerarg value="-fstack-usage"/>
+      <compilerarg value="-fmem-report"/>
       <compilerarg value="-g"/>
       
     <linkerarg value="-O0"/>

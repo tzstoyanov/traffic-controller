@@ -39,26 +39,11 @@
 /*
  * local types
  */
-typedef struct
-{
-    union
-    {
-        struct
-        {
-            U8  Address;
-            U8  Command;
-        };
-        U16 ID;
-    };
-
-    U8  Data[8];
-    U8  Len;
-} tMessage;
 
 typedef struct
 {
     U8 Id;
-    tErrByte Error;
+    tTLCErrByte Error;
     U8 Status;
     U8 ErrorCnt;
     U8 Request;
@@ -105,118 +90,6 @@ static U8 gw_find_slave_index(U8 ID)
     return (found != FALSE) ? (index-1) : cGWMaxDevices;
 }
 
-static U8 ascii2hex(U8 data)
-{
-    U8 Result = 16;
-
-    if ((data>='0') && (data<='9'))
-    {
-        Result = data - '0';
-    }
-    else if ((data>='a') && (data<='f'))
-    {
-        Result = 10+ data - 'a';
-    }
-    else if ((data>='A') && (data<='F'))
-    {
-        Result = 10+ data - 'A';
-    }
-    else
-    { // error
-    }
-    return Result;
-}
-
-static bool gw_decode(tLINMsg * pLINMsg, tMessage * pMessage)
-{
-    U8 index;
-    U8 data = 0;
-    tLINMsg InputMsg;
-
-    bool second = TRUE;
-    bool Result = TRUE;
-
-    InputMsg.Len = pLINMsg->Len;
-    for (index=0; index < pLINMsg->Len; index++)
-    {
-        InputMsg.Data[index] = ascii2hex(pLINMsg->Data[index]);
-
-        if (InputMsg.Data[index] >= 16)
-        {
-            Result = FALSE;
-            break;
-        }
-    }
-
-    Result = Result && (0 == (InputMsg.Len % 2));
-
-    if (Result)
-    {
-        pMessage->Command = InputMsg.Data[0];
-        pMessage->Address = (InputMsg.Data[1]<<4) + InputMsg.Data[2];
-        pMessage->Len     = InputMsg.Data[3];
-
-        Result = (pMessage->Len == ((InputMsg.Len - 5)/2));
-
-        { U8 ChkSum = 0;
-            for (index=0;index<(pLINMsg->Len-2);index++)
-            {
-                ChkSum -= pLINMsg->Data[index];
-            }
-            Result = Result && (InputMsg.Data[InputMsg.Len-2] == (ChkSum>>4));
-            Result = Result && (InputMsg.Data[InputMsg.Len-1] == (ChkSum & 0x0F));
-        }
-
-
-        if (Result)
-        {
-            for (index = 0; index < pMessage->Len; index++)
-            {
-                pMessage->Data[index] = (InputMsg.Data[4+(2*index)] << 4)+ InputMsg.Data[4+(2*index)+1];
-            }
-        }
-    }
-    return Result;
-}
-
-static void gw_code( tMessage * pMessage, tLINMsg * pLINMsg)
-{
-    static U8 H2A[16] = {'0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'};
-    U8 index;
-    U8 part;
-
-    index = 0;
-    pLINMsg->Data[index] = H2A[pMessage->Command & 0x0F];
-    index ++;
-    pLINMsg->Data[index] = H2A[pMessage->Address >> 4];
-    index ++;
-    pLINMsg->Data[index] = H2A[pMessage->Address & 0x0F];
-    index ++;
-    pLINMsg->Data[index] = H2A[pMessage->Len & 0x0F];
-    index ++;
-    for (part = 0; part < (pMessage->Len & 0x0F); part++)
-    {
-        pLINMsg->Data[index] = H2A[pMessage->Data[part]>>4];
-        index++;
-        pLINMsg->Data[index] = H2A[pMessage->Data[part] & 0x0F];
-        index++;
-    }
-
-    // checksum
-    {
-        U8 ChkSum = 0;
-        U8 i;
-        for (i=0; i<index; i++)
-        {
-            ChkSum -=pLINMsg->Data[i];
-        }
-        pLINMsg->Data[index] = H2A[ChkSum >> 4];
-        index ++;
-        pLINMsg->Data[index] = H2A[ChkSum & 0x0F];
-        index ++;
-    }
-    pLINMsg->Len = index;
-}
 
 /**
  * \fn static gw_add_slave(U8 Id)
@@ -233,7 +106,7 @@ static void gw_code( tMessage * pMessage, tLINMsg * pLINMsg)
  *
  *//* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-static gw_add_slave(U8 Id)
+static void gw_add_slave(U8 Id)
 {
     U16 index;
     bool found = FALSE;
@@ -278,7 +151,7 @@ static gw_add_slave(U8 Id)
  * Changes : <CHANGES>
  *
  *//* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-static gw_remove_slave(U8 Id)
+static void gw_remove_slave(U8 Id)
 {
     U16 index;
     bool found = FALSE;
@@ -306,10 +179,9 @@ static gw_remove_slave(U8 Id)
     }
 }
 
-static gw_respond(void)
+static void gw_respond(void)
 {
     tMessage CanMsg;
-    tLINMsg  LinMsg;
     U8 index;
 
     if (FALSE != GWData.ResponseRequest)
@@ -338,8 +210,7 @@ static gw_respond(void)
         CanMsg.Len = index;
         CanMsg.ID =
             mCanBuildId((GWData.RespCnt < GWData.SlaveCount) ? (TLC_CMD_WD_RESP_FRAG): (TLC_CMD_WD_RESP), GWData.RouterId);
-        gw_code(&CanMsg, &LinMsg);
-        lin_send(&LinMsg);
+        lin_send_message(&CanMsg);
         GWData.ResponseRequest = (GWData.RespCnt < GWData.SlaveCount);
     }
 }
@@ -362,7 +233,6 @@ static gw_respond(void)
 static void gw_command(tMessage * pMsg)
 {
     U8 index = 0;
-    U8 state = 0;
 
     switch (pMsg->Command)
     {
@@ -491,33 +361,29 @@ void appl_init(void)
  *
  *//* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-void gw_lin_reception(tLINMsg * pLINMsg)
+void gw_lin_reception(tMessage * pMessage)
 {
-    tMessage Msg;
     U16 index;
     bool found;
 
-    if (NULL != pLINMsg)
+    if (NULL != pMessage)
     {
-        if (gw_decode(pLINMsg, &Msg))
-        {
-            if (    (GWData.DeviceId == Msg.Address)
-                 || (TLC_ADDR_ALL    == Msg.Address)
-                 )
-            { // message for the GW
-                gw_command(&Msg);
+        if (    (GWData.DeviceId == pMessage->Address)
+             || (TLC_ADDR_ALL    == pMessage->Address)
+             )
+        { // message for the GW
+            gw_command(pMessage);
 
-                if (TLC_ADDR_ALL == Msg.Address)
-                {
-                    can_send(&Msg);
-                }
+            if (TLC_ADDR_ALL == pMessage->Address)
+            {
+                can_send(pMessage);
             }
-            else
-            { // not for GW, send CAN frame
-                if (cGWMaxDevices != gw_find_slave_index(Msg.Address))
-                { // slave is registered
-                    can_send(&Msg);
-                }
+        }
+        else
+        { // not for GW, send CAN frame
+            if (cGWMaxDevices != gw_find_slave_index(pMessage->Address))
+            { // slave is registered
+                can_send(pMessage);
             }
         }
     }

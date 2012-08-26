@@ -34,10 +34,13 @@
     typedef U32 tOSTimer;
     extern tOSTimer OSSysCounter;
 
+    // start of the OS, never returns
+    void OSStart(void);
     // attach on timer for base tick
     void OSTick(void);
     // Task functions
     void OSActivateTask(tOSTaskID TaskID);
+    void OSSetPeriodicAlarm(tOSTaskID TaskID, U8 Slot);
 
     // timers
     void OSStartTimer(tOSTimer * Timer);

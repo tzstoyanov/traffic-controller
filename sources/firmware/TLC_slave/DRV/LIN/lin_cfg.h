@@ -17,7 +17,7 @@
 #define cLINCmdStartChar    TL_PKT_START
 #define cLINCmdEndChar      TL_PKT_END
 
-extern void gw_lin_reception(tLINMsg * LINMsg);
+extern void gw_lin_reception(tMessage * pMessage);
 #define LIN_RX_CALLBACK_PTR    gw_lin_reception
 
 //#define NO_TX_REPLY
