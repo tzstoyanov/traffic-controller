@@ -27,15 +27,22 @@ typedef struct
 {
     U8 DeviceId;    /**< device identifier */
     U8 Status;
-    tErrByte ErrByte;
+    tTLCErrByte ErrByte;
 } tLampData;
 
 
+#define LAMP_INSTANCES  3
+#define LAMPS_ID    {0x03, 0x04, 0x05}
+
+static const u08    cLampIds[]  =   LAMPS_ID;
+#define LAMPS_ID_COUNT      ((sizeof cLampIds)/(sizeof cLampIds[0]))
 
 /*
  * local variables
  */
-static tLampData LampData;
+static tLampData LampData[LAMPS_ID_COUNT];
+
+void appl_can_rx_handler(u08 instance, tCanMsg * pCanMsg);
 
 /**
  * \fn void lamp_init(void)
@@ -54,11 +61,19 @@ static tLampData LampData;
 
 void appl_init(void)
 {
-    LampData.DeviceId = nvram_get_u8DeviceId();
-    LampData.ErrByte.Error = TLC_ERROR_INIT;
-    LampData.ErrByte.ErrFlag = TRUE;
-    LampData.ErrByte.Type  = TLC_TYPE_LAMP;
+    REG i;
     can_init();
+
+    for (i=0; i<LAMPS_ID_COUNT; i++)
+    {
+        //LampData[i].DeviceId = nvram_get_u8DeviceId();
+        LampData[i].DeviceId = cLampIds[i];
+        LampData[i].ErrByte.Error = TLC_ERROR_INIT;
+        LampData[i].ErrByte.ErrFlag = TRUE;
+        LampData[i].ErrByte.Type  = TLC_TYPE_LAMP;
+        // register callback
+        can_register_cb(cLampIds[i], &appl_can_rx_handler, i);
+    }
 }
 
 /**
@@ -77,31 +92,35 @@ void appl_init(void)
  *
  *//* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-void appl_can_rx_handler(tCanMsg * pCanMsg)
+void appl_can_rx_handler(u08 instance, tCanMsg * pCanMsg)
 {
     tCanMsg CanMsg;
-    U8 Temp;
+    tLampData * pLampData;
 
-    if (   ((pCanMsg->ID & 0x0FF)== LampData.DeviceId)
-        || ((pCanMsg->ID & 0x0FF)== TLC_ADDR_ALL)
-        )
+    if (instance < LAMP_INSTANCES)
     {
+        pLampData = &LampData[instance];
+
         if (   (((pCanMsg->ID & 0x700)>>8) == TLC_CMD_STATE)
             && (pCanMsg->Length == 1)
             )
         {
             if (((pCanMsg->Data[0] & 0xE0)>>5) == TLC_TYPE_LAMP)
             {
-                mDio_SetPin(GREEN , (0 != (pCanMsg->Data[0] & 0x01)));
-                mDio_SetPin(RED   , (0 != (pCanMsg->Data[0] & 0x02)));
-                mDio_SetPin(YELLOW, (0 != (pCanMsg->Data[0] & 0x04)));
-
-                LampData.Status = pCanMsg->Data[0] & 0x07;
-
-                if (TLC_ERROR_INIT == LampData.ErrByte.Error)
+                if (0 == instance)
                 {
-                    LampData.ErrByte.Error = TLC_ERROR_OK;
-                    LampData.ErrByte.ErrFlag = FALSE;
+                    mDio_SetPin(GREEN , (0 != (pCanMsg->Data[0] & 0x01)));
+                    mDio_SetPin(YELLOW, (0 != (pCanMsg->Data[0] & 0x02)));
+                    mDio_SetPin(RED   , (0 != (pCanMsg->Data[0] & 0x04)));
+                }
+                // TODO: configure all instances
+
+                pLampData->Status = pCanMsg->Data[0] & 0x07;
+
+                if (TLC_ERROR_INIT == pLampData->ErrByte.Error)
+                {
+                    pLampData->ErrByte.Error = TLC_ERROR_OK;
+                    pLampData->ErrByte.ErrFlag = FALSE;
                 }
             }
         }
@@ -109,13 +128,17 @@ void appl_can_rx_handler(tCanMsg * pCanMsg)
                 && (pCanMsg->Length == 1)
                 )
         {
-            CanMsg.Data[0] = LampData.DeviceId;
-            CanMsg.Data[1] = LampData.ErrByte.Data;
-            CanMsg.Data[2] = LampData.Status;
+            CanMsg.Data[0] = pLampData->DeviceId;
+            CanMsg.Data[1] = pLampData->ErrByte.Data;
+            CanMsg.Data[2] = pLampData->Status;
             CanMsg.Length = 3;
             CanMsg.ID = pCanMsg->Data[0] + (((U16)(TLC_CMD_WD_RESP))<<8);
             can_send(&CanMsg);
         }
+    }
+    else
+    {
+        Assert(FALSE, "out bounds");
     }
 }
 

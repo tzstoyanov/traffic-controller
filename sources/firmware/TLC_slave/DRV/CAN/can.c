@@ -20,6 +20,7 @@
  * 16.08.2012 taa: creation
  * 20.08.2012 taa: UART_TRACE_CAN moved to system.h
  * 20.08.2012 taa: ++ TX error recovery
+ * 28.08.2012 taa: ++ multiple appl callback
  *
  *//* ************************************************************************ */
 
@@ -80,6 +81,8 @@ typedef struct
     bool BusOff;            /**< bus-off signal flag */
 } tCANData;
 
+
+
 /*
  * local variables
  */
@@ -110,8 +113,10 @@ const CAN_CALLBACKS CANCallbacks =
 const U32 CanApiClkInitTable[2] = cCanInitTableInitializer;
     /**< CAN cell settings */
 
-static const tpCANRxCallback pCANRxCallback = cCANRxCallback;
+//static const tpCANRxCallback pCANRxCallback = cCANRxCallback;
     /**< reception callout function */
+
+static tCANRxCallback CANRxCallbacks[CAN_RX_CALLBACKS] = {{NULL,0,0}};
 
 /*
  * local function prototypes
@@ -119,7 +124,7 @@ static const tpCANRxCallback pCANRxCallback = cCANRxCallback;
 
 static void can_cell_init(void);
     /**< CAN cell initialization */
-static can_internal_send (tCanMsg * pCanMsg);
+static void can_internal_send (tCanMsg * pCanMsg);
     /**< internal send routine */
 
 /*
@@ -251,6 +256,7 @@ void can_tx_task(void)
 void can_rx_task(void)
 {
     U8 index;
+    u08 Temp;
 
     if ((CANRxQueue.IndexIn != CANRxQueue.IndexOut) || (CANRxQueue.IsFull))
     {
@@ -265,16 +271,24 @@ void can_rx_task(void)
     }
 #endif
 
-        if (pCANRxCallback != NULL)
+    // specific part
+        Temp = (u08)CANRxQueue.Message[CANRxQueue.IndexOut].ID;
+        for (index = 0; (index < CAN_RX_CALLBACKS) && (NULL != CANRxCallbacks[index].pCANRxCallback); index++)
         {
-            pCANRxCallback(&CANRxQueue.Message[CANRxQueue.IndexOut]);
-            CANRxQueue.IndexOut++;
-            if (CANRxQueue.IndexOut >= cCANQueueSize)
+            if (   (0xFF == Temp)
+                || (Temp == CANRxCallbacks[index].Address)
+                )
             {
-                CANRxQueue.IndexOut = 0;
+                CANRxCallbacks[index].pCANRxCallback(CANRxCallbacks[index].Instance, &CANRxQueue.Message[CANRxQueue.IndexOut]);
             }
-            CANRxQueue.IsFull = FALSE;
         }
+    // end of specific part
+        CANRxQueue.IndexOut++;
+        if (CANRxQueue.IndexOut >= cCANQueueSize)
+        {
+            CANRxQueue.IndexOut = 0;
+        }
+        CANRxQueue.IsFull = FALSE;
     }
 
     if ((CANRxQueue.IndexIn != CANRxQueue.IndexOut) || (CANRxQueue.IsFull))
@@ -328,10 +342,59 @@ bool can_send(tCanMsg * pCanMsg)
     return Result;
 }
 
-static void can_rx_callback(U8 MsgNo)
+/**
+ * \fn bool can_register_cb(u08 Address, tpCANRxCallback fcb, u08 instance)
+ *
+ * register application can callback function
+ *
+ * \param  [in] Address : u08 - slave address (TLC specific)
+ * \param  [in] fcb     : tpCANRxCallback - pointer to callback function
+ * \param  [in] instance: u08 - object instance to be passed to the callback
+ * \return bool - TRUE in case of success
+ * \pre    component is initialized
+ *
+ * Uses    : CANRxCallbacks \n
+ * Changes : CANRxCallbacks
+ *
+ *//* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+bool can_register_cb(u08 Address, tpCANRxCallback fcb, u08 instance)
+{
+    bool Result = FALSE;
+    u08 index;
+
+    for (index = 0; (index < CAN_RX_CALLBACKS) && (NULL != CANRxCallbacks[index].pCANRxCallback); index++)
+    {
+    }
+    if (index < CAN_RX_CALLBACKS)
+    {
+        CANRxCallbacks[index].Address = Address;
+        CANRxCallbacks[index].pCANRxCallback = fcb;
+        CANRxCallbacks[index].Instance = instance;
+        Result = TRUE;
+    }
+
+    return Result;
+}
+
+/**
+ * \fn static void can_rx_callback(U8 MsgNo)
+ *
+ * can reception callback routine
+ * called by ROM CAN driver in interrupt context
+ *
+ * \param  [in] MsgNo : u08 - message object ID
+ * \return none
+ * \pre    component is initialized
+ *
+ * Uses    : <USES> \n
+ * Changes : <CHANGES>
+ *
+ *//* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+static void can_rx_callback(u08 MsgNo)
 {
     CAN_MSG_OBJ msg_obj;
-    U8 str[128];
     U8 index;
 
     msg_obj.msgobj = MsgNo;
@@ -363,17 +426,6 @@ static void can_rx_callback(U8 MsgNo)
             CANData.ErrRxOverflowCnt++;
         }
     }
-
-//#ifdef UART_TRACE_CAN
-//    TSTOutStr("\r\nRX:");
-//    TSTOut16H(msg_obj.mode_id);
-//
-//    for (index=0; index < msg_obj.dlc; index++)
-//    {
-//        TSTOutStr(":");
-//        TSTOut8H(msg_obj.data[index]);
-//    }
-//#endif
     CAN_LED_RX(1);
 }
 
@@ -443,10 +495,9 @@ static void can_err_callback(U32 Error)
  * Changes : none
  *
  *//* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-static can_internal_send (tCanMsg * pCanMsg)
+static void can_internal_send (tCanMsg * pCanMsg)
 {
     CAN_MSG_OBJ msg_obj;
-    U8 index;
 
     msg_obj.msgobj  = cCANTxMsgBox;
     msg_obj.mode_id = pCanMsg->ID;
@@ -469,13 +520,17 @@ static can_internal_send (tCanMsg * pCanMsg)
     CANData.TxTimeoutCnt = cCANTxTimeoutInMs/cCANTickinMs;
 
 #ifdef UART_TRACE_CAN
-    TSTOutStr("\n\rTX:");
-    TSTOut16H(msg_obj.mode_id);
-
-    for (index=0; index < msg_obj.dlc; index++)
     {
-        TSTOutStr(":");
-        TSTOut8H(msg_obj.data[index]);
+        u08 index;
+
+        TSTOutStr("\n\rTX:");
+        TSTOut16H(msg_obj.mode_id);
+
+        for (index=0; index < msg_obj.dlc; index++)
+        {
+            TSTOutStr(":");
+            TSTOut8H(msg_obj.data[index]);
+        }
     }
 #endif
 }

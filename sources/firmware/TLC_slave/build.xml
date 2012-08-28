@@ -66,13 +66,13 @@
       <compilerarg value="-mthumb"/>
       <compilerarg value="-Wall"/>      
       <compilerarg value="-ffunction-sections"/>
-      <compilerarg value="-O0"/>
+      <compilerarg value="-Os"/>
       
       <compilerarg value="-fstack-usage"/>
-      <compilerarg value="-fmem-report"/>
+      
       <compilerarg value="-g"/>
       
-    <linkerarg value="-O0"/>
+    <linkerarg value="-Os"/>
       <linkerarg value="-nostartfiles"/>
       <linkerarg value="-Map=${project.name}.map"/>
       <linkerarg value="-mcpu=cortex-m0"/>

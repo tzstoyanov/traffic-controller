@@ -17,7 +17,6 @@
 #include "can.h"
 #include "tlc_cfg.h"
 #include "assert.h"
-#include "lpc11xx_gpio.h"
 #include "nvram.h"
 #include "os.h"
 
@@ -179,6 +178,20 @@ static void gw_remove_slave(U8 Id)
     }
 }
 
+/**
+ * \fn static void gw_respond(void)
+ *
+ * LIN response
+ *
+ * \param  none
+ * \return none
+ * \pre    component is initialized
+ *
+ * Uses    : GWData \n
+ * Changes : GWData.RespCnt
+ *
+ *//* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
 static void gw_respond(void)
 {
     tMessage CanMsg;
@@ -302,12 +315,26 @@ static void gw_command(tMessage * pMsg)
     }
 }
 
-void appl_can_rx_handler(tCanMsg * pCanMsg)
+/**
+ * \fn void appl_can_rx_handler(tCanMsg * pCanMsg)
+ *
+ * called when CAN message is received
+ *
+ * \param  [in] pCanMsg: tCanMsg* - received message
+ * \return none
+ * \pre    component is initialized
+ *
+ * Uses    : <USES> \n
+ * Changes : Devices
+ *
+ *//* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+void appl_can_rx_handler(u08 instance, tCanMsg * pCanMsg)
 {
     U16  index;
 
     if (   (mCanExtractCmd(pCanMsg->ID)  == TLC_CMD_WD_RESP)
-        && (mCanExtractAddr(pCanMsg->ID) == GWData.DeviceId)
+//        && (mCanExtractAddr(pCanMsg->ID) == GWData.DeviceId)
         && (pCanMsg->Length == 3)
         )
     { // state response received
@@ -345,16 +372,18 @@ void appl_init(void)
     GWData.DeadCount  = 3;
     GWData.WDInterval = 10;
     GWData.State      = 0x21;   // type:GW, state: ok, error: Init
+
+    can_register_cb(GWData.DeviceId, &appl_can_rx_handler, 0);
 }
 
 /**
  * \fn void gw_lin_reception(tLINMsg * pLINMsg)
  *
- * LIN message is recevied
+ * LIN message is received
  *
  * \param  [in] pLINMsg : tLINMsg * - message
  * \return none
- * \pre    component is initilized
+ * \pre    component is initialized
  *
  * Uses    : <USES> \n
  * Changes : <CHANGES>
@@ -363,9 +392,6 @@ void appl_init(void)
 
 void gw_lin_reception(tMessage * pMessage)
 {
-    U16 index;
-    bool found;
-
     if (NULL != pMessage)
     {
         if (    (GWData.DeviceId == pMessage->Address)
@@ -376,7 +402,7 @@ void gw_lin_reception(tMessage * pMessage)
 
             if (TLC_ADDR_ALL == pMessage->Address)
             {
-                can_send(pMessage);
+                can_send((tCanMsg*)pMessage);
             }
         }
         else

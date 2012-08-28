@@ -37,7 +37,7 @@
 #define DEVICE_TYPE_LAMP        1
 #define DEVICE_TYPE_TIMER       2
 
-#define DEVICE_TYPE     DEVICE_TYPE_GATEWAY
+#define DEVICE_TYPE     DEVICE_TYPE_LAMP
     /**< device type */
 
 #if DEVICE_TYPE == DEVICE_TYPE_GATEWAY

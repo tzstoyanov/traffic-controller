@@ -36,9 +36,11 @@
 #define cCANTxMsgBox        31
     /**< id of the message box, used for transmission */
 
-extern void appl_can_rx_handler(tCanMsg * pCanMsg);
+extern void appl_can_rx_handler(u08 instance, tCanMsg * pCanMsg);
 #define cCANRxCallback  appl_can_rx_handler
     /**< function to be called upon CAN frame  reception */
+
+#define CAN_RX_CALLBACKS    8
 
 #define cCANTxTimeoutInMs    20
     /**< TX timeout */
