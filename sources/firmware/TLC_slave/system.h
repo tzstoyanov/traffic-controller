@@ -37,10 +37,10 @@
 #define DEVICE_TYPE_LAMP        1
 #define DEVICE_TYPE_TIMER       2
 
-#define DEVICE_TYPE     DEVICE_TYPE_GATEWAY
+#define DEVICE_TYPE     DEVICE_TYPE_LAMP
     /**< device type */
 
-
+#if DEVICE_TYPE == DEVICE_TYPE_GATEWAY
 /*
  * CAN
  */
@@ -48,6 +48,8 @@
     /**< uncomment to enable CAN trace over UART */
 //#define CAN_TEST
     /**< uncomment to put CAN cell in test mode */
+#define CAN_LED_ENABLE
+    /**< uncomment to use LedTx/LedRx */
 
 /*
  * LIN
@@ -60,6 +62,7 @@
  */
 //#define UART_TRACE_GW
     /**< uncomment to trace GW */
+#endif
 
 #endif
 

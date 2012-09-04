@@ -17,7 +17,6 @@
 #include "can.h"
 #include "tlc_cfg.h"
 #include "assert.h"
-#include "lpc11xx_gpio.h"
 #include "nvram.h"
 #include "os.h"
 
@@ -39,25 +38,11 @@
 /*
  * local types
  */
-typedef struct
-{
-    union
-    {
-        struct
-        {
-            U8  Address;
-            U8  Command;
-        };
-        U16 ID;
-    };
-
-    U8  Data[8];
-    U8  Len;
-} tMessage;
 
 typedef struct
 {
     U8 Id;
+    tTLCErrByte Error;
     U8 Status;
     U8 ErrorCnt;
     U8 Request;
@@ -88,94 +73,22 @@ typedef struct
 static tGWData  GWData;
 static tSlaveDevice Devices[cGWMaxDevices];
 
-static U8 ascii2hex(U8 data)
+static U8 gw_find_slave_index(U8 ID)
 {
-    U8 Result = 16;
+    bool found = FALSE;
+    U8   index;
 
-    if ((data>='0') && (data<='9'))
+    for (index=0; (index<GWData.SlaveCount)&&(!found); index++ )
     {
-        Result = data - '0';
-    }
-    else if ((data>='a') && (data<='f'))
-    {
-        Result = 10+ data - 'a';
-    }
-    else if ((data>='A') && (data<='F'))
-    {
-        Result = 10+ data - 'A';
-    }
-    else
-    { // error
-    }
-    return Result;
-}
-
-static bool gw_decode(tLINMsg * pLINMsg, tMessage * pMessage)
-{
-    U8 index;
-    U8 data = 0;
-    tLINMsg InputMsg;
-
-    bool second = TRUE;
-    bool Result = TRUE;
-
-    InputMsg.Len = pLINMsg->Len;
-    for (index=0; index < pLINMsg->Len; index++)
-    {
-        InputMsg.Data[index] = ascii2hex(pLINMsg->Data[index]);
-
-        if (InputMsg.Data[index] >= 16)
+        if (Devices[index].Id == ID)
         {
-            Result = FALSE;
-            break;
+            found = TRUE;
         }
     }
 
-    Result = Result && (0 == (InputMsg.Len % 2));
-
-    if (Result)
-    {
-        pMessage->Command = InputMsg.Data[0];
-        pMessage->Address = (InputMsg.Data[1]<<4) + InputMsg.Data[2];
-        pMessage->Len     = InputMsg.Data[3];
-
-        Result = (pMessage->Len == ((InputMsg.Len - 4)/2));
-
-        if (Result)
-        {
-            for (index = 0; index < pMessage->Len; index++)
-            {
-                pMessage->Data[index] = (InputMsg.Data[4+(2*index)] << 4)+ InputMsg.Data[4+(2*index)+1];
-            }
-        }
-    }
-    return Result;
+    return (found != FALSE) ? (index-1) : cGWMaxDevices;
 }
 
-static void gw_code( tMessage * pMessage, tLINMsg * pLINMsg)
-{
-    static U8 H2A[16] = {'0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'};
-    U8 index;
-    U8 part;
-
-    index = 0;
-    pLINMsg->Data[index] = H2A[pMessage->Command & 0x0F];
-    index ++;
-    pLINMsg->Data[index] = H2A[pMessage->Address >> 4];
-    index ++;
-    pLINMsg->Data[index] = H2A[pMessage->Address & 0x0F];
-    index ++;
-    pLINMsg->Data[index] = H2A[pMessage->Len & 0x0F];
-    index ++;
-    for (part = 0; part < (pMessage->Len & 0x0F); part++)
-    {
-        pLINMsg->Data[index] = H2A[pMessage->Data[part]>>4];
-        index++;
-        pLINMsg->Data[index] = H2A[pMessage->Data[part] & 0x0F];
-        index++;
-    }
-    pLINMsg->Len = index;
-}
 
 /**
  * \fn static gw_add_slave(U8 Id)
@@ -192,7 +105,7 @@ static void gw_code( tMessage * pMessage, tLINMsg * pLINMsg)
  *
  *//* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-static gw_add_slave(U8 Id)
+static void gw_add_slave(U8 Id)
 {
     U16 index;
     bool found = FALSE;
@@ -237,7 +150,7 @@ static gw_add_slave(U8 Id)
  * Changes : <CHANGES>
  *
  *//* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-static gw_remove_slave(U8 Id)
+static void gw_remove_slave(U8 Id)
 {
     U16 index;
     bool found = FALSE;
@@ -265,10 +178,23 @@ static gw_remove_slave(U8 Id)
     }
 }
 
-static gw_respond(void)
+/**
+ * \fn static void gw_respond(void)
+ *
+ * LIN response
+ *
+ * \param  none
+ * \return none
+ * \pre    component is initialized
+ *
+ * Uses    : GWData \n
+ * Changes : GWData.RespCnt
+ *
+ *//* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+static void gw_respond(void)
 {
     tMessage CanMsg;
-    tLINMsg  LinMsg;
     U8 index;
 
     if (FALSE != GWData.ResponseRequest)
@@ -283,15 +209,21 @@ static gw_respond(void)
         while ((index < 8) && (GWData.RespCnt < GWData.SlaveCount))
         { // add module state
             CanMsg.Data[index]   = Devices[GWData.RespCnt].Id;
-            CanMsg.Data[index+1] = Devices[GWData.RespCnt].Status;
+            if ((TLC_TYPE_LAMP << 5) == Devices[GWData.RespCnt].Error.Data)
+            { // lamp without error, report state
+                CanMsg.Data[index+1] = (TLC_TYPE_LAMP << 5) | Devices[GWData.RespCnt].Status;
+            }
+            else
+            { // report error
+                CanMsg.Data[index+1] = Devices[GWData.RespCnt].Error.Data;
+            }
             index +=2;
             GWData.RespCnt++;
         }
         CanMsg.Len = index;
         CanMsg.ID =
             mCanBuildId((GWData.RespCnt < GWData.SlaveCount) ? (TLC_CMD_WD_RESP_FRAG): (TLC_CMD_WD_RESP), GWData.RouterId);
-        gw_code(&CanMsg, &LinMsg);
-        lin_send(&LinMsg);
+        lin_send_message(&CanMsg);
         GWData.ResponseRequest = (GWData.RespCnt < GWData.SlaveCount);
     }
 }
@@ -314,7 +246,6 @@ static gw_respond(void)
 static void gw_command(tMessage * pMsg)
 {
     U8 index = 0;
-    U8 state = 0;
 
     switch (pMsg->Command)
     {
@@ -337,19 +268,20 @@ static void gw_command(tMessage * pMsg)
                     }
                 }
                 else if (    (TLC_CFG_SUB_MODULES_ADD == param)
-                          && (1 == length)
+                      //    && (1 == length)
                          )
                 { // add device
-                    if ((index+1) < pMsg->Len)
+                    while ((length--) && ((index+1) < pMsg->Len))
                     {
                         gw_add_slave(pMsg->Data[index+1]);
+                        index++;
                     }
                 }
                 else if (    (TLC_CFG_DEAD_COUNT == param)
                           && (1 == length)
                          )
                 { // configure dead counter
-                    // TODO
+                    GWData.DeadCount = pMsg->Data[index+1];
                 }
                 else if (    (TLC_CFG_COMM_TIMEOUT == param)
                           && (1 == length)
@@ -383,26 +315,35 @@ static void gw_command(tMessage * pMsg)
     }
 }
 
-void appl_can_rx_handler(tCanMsg * pCanMsg)
+/**
+ * \fn void appl_can_rx_handler(tCanMsg * pCanMsg)
+ *
+ * called when CAN message is received
+ *
+ * \param  [in] pCanMsg: tCanMsg* - received message
+ * \return none
+ * \pre    component is initialized
+ *
+ * Uses    : <USES> \n
+ * Changes : Devices
+ *
+ *//* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+void appl_can_rx_handler(u08 instance, tCanMsg * pCanMsg)
 {
     U16  index;
-    bool found;
 
     if (   (mCanExtractCmd(pCanMsg->ID)  == TLC_CMD_WD_RESP)
-        && (mCanExtractAddr(pCanMsg->ID) == GWData.DeviceId)
+//        && (mCanExtractAddr(pCanMsg->ID) == GWData.DeviceId)
         && (pCanMsg->Length == 3)
         )
     { // state response received
-
-        found = FALSE;
-        for (index=0; (index<GWData.SlaveCount) && (!found); index++)
+        index = gw_find_slave_index(pCanMsg->Data[0]);
+        if (cGWMaxDevices != index)
         {
-            if (Devices[index].Id == pCanMsg->Data[0])
-            {
-                Devices[index].Timeout = FALSE;
-                Devices[index].Status  = pCanMsg->Data[1];
-                found = TRUE;
-            }
+            Devices[index].Timeout = FALSE;
+            Devices[index].Error.Data   = pCanMsg->Data[1];
+            Devices[index].Status  = pCanMsg->Data[2];
         }
     }
 }
@@ -431,50 +372,44 @@ void appl_init(void)
     GWData.DeadCount  = 3;
     GWData.WDInterval = 10;
     GWData.State      = 0x21;   // type:GW, state: ok, error: Init
+
+    can_register_cb(GWData.DeviceId, &appl_can_rx_handler, 0);
 }
 
 /**
  * \fn void gw_lin_reception(tLINMsg * pLINMsg)
  *
- * LIN message is recevied
+ * LIN message is received
  *
  * \param  [in] pLINMsg : tLINMsg * - message
  * \return none
- * \pre    component is initilized
+ * \pre    component is initialized
  *
  * Uses    : <USES> \n
  * Changes : <CHANGES>
  *
  *//* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-void gw_lin_reception(tLINMsg * pLINMsg)
+void gw_lin_reception(tMessage * pMessage)
 {
-    tMessage Msg;
-    U16 index;
-    bool found;
-
-    if (NULL != pLINMsg)
+    if (NULL != pMessage)
     {
-        if (gw_decode(pLINMsg, &Msg))
-        {
-            if (GWData.DeviceId == Msg.Address)
-            { // message for the GW
-                gw_command(&Msg);
+        if (    (GWData.DeviceId == pMessage->Address)
+             || (TLC_ADDR_ALL    == pMessage->Address)
+             )
+        { // message for the GW
+            gw_command(pMessage);
+
+            if (TLC_ADDR_ALL == pMessage->Address)
+            {
+                can_send((tCanMsg*)pMessage);
             }
-            else
-            { // send CAN frame
-                found = FALSE;
-                for (index=0; (index<GWData.SlaveCount)&&(!found); index++ )
-                {
-                    if (Devices[index].Id == Msg.Address)
-                    {
-                        found = TRUE;
-                    }
-                }
-                if (FALSE != found)
-                {
-                    can_send(&Msg);
-                }
+        }
+        else
+        { // not for GW, send CAN frame
+            if (cGWMaxDevices != gw_find_slave_index(pMessage->Address))
+            { // slave is registered
+                can_send(pMessage);
             }
         }
     }
@@ -488,6 +423,12 @@ void gw_lin_reception(tLINMsg * pLINMsg)
  * \fn void gw_task(void)
  *
  * GW periodic task
+ * called every 10ms
+ *
+ * Main purpose:
+ * - management of long responses
+ * - generation of CAN state requests
+ * - dead counter
  *
  * \param  none
  * \return none
@@ -503,28 +444,40 @@ void appl_task(void)
     tCanMsg CanMsg;
     U16 index;
 
+    /*
+     * long responses
+     */
     gw_respond();
 
+    /*
+     * Query management
+     */
     GWData.WDCounter++;
     if (GWData.WDCounter >= (U16)GWData.WDInterval)
     { // query interval
 
+        /*
+         * check failure
+         */
         for (index=0; index<GWData.SlaveCount; index++)
         {
             if (TRUE == Devices[index].Timeout)
             { // no response from device in this query interval
                 if (Devices[index].ErrorCnt >= GWData.DeadCount)
                 { // device is failed
-                    Devices[index].Status = TLC_ERROR_TIMEOUT;
+                    Devices[index].Error.Error   = TLC_ERROR_TIMEOUT;
+                    Devices[index].Error.ErrFlag = TRUE;
                 }
                 else
-                {
+                { // increase error counter
                     Devices[index].ErrorCnt++;
                 }
             }
         }
 
-        // request new state
+       /*
+        * request new state
+        */
         for (index=0; index<GWData.SlaveCount; index++)
         {
             Devices[index].Timeout = TRUE;
@@ -533,8 +486,11 @@ void appl_task(void)
         CanMsg.ID = mCanBuildId(TLC_CMD_WD_REQ, TLC_ADDR_ALL);
         CanMsg.Length = 1;
         CanMsg.Data[0] = GWData.DeviceId;
-
         can_send(&CanMsg);
+
+        /*
+         * start new interval
+         */
         GWData.WDCounter = 0;
     }
 }

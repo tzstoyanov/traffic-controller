@@ -12,6 +12,8 @@
 #define mDio_GetPin(IN, STATE)      mDio_GetPinx(IN, STATE)
 #define mDio_GetPinx(IN, STATE)     mDio_GetPin_int(PORT_##IN, PIN_##IN, STATE, POL_##IN)
 
+#if DEVICE_TYPE == DEVICE_TYPE_GATEWAY
+
     #define PORT_LedTx  1
     #define PIN_LedTx   GPIO_Pin_10
     #define POL_LedTx   DIO_POLARITY_NEGATIVE
@@ -20,10 +22,20 @@
     #define PIN_LedRx   GPIO_Pin_11
     #define POL_LedRx   DIO_POLARITY_NEGATIVE
 
-#if DEVICE_TYPE == DEVICE_TYPE_LAMP
+#elif DEVICE_TYPE == DEVICE_TYPE_LAMP
+
     #define PORT_GREEN  1
     #define PIN_GREEN   GPIO_Pin_9
     #define POL_GREEN   DIO_POLARITY_NEGATIVE
+
+    #define PORT_RED    1
+    #define PIN_RED     GPIO_Pin_10
+    #define POL_RED     DIO_POLARITY_NEGATIVE
+
+    #define PORT_YELLOW    1
+    #define PIN_YELLOW     GPIO_Pin_11
+    #define POL_YELLOW     DIO_POLARITY_NEGATIVE
+
 #endif
 
 
